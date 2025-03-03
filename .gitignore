@@ -21,3 +21,7 @@ event_bus-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+.lexical
+.elixir_ls
+.DS_Store
