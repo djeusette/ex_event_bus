@@ -1,17 +1,17 @@
-# EventBus
+# ExEventBus
 
-EventBus provides an event bus that uses the outbox pattern.  Behind the scenes, 
+ExEventBus provides an event bus that uses the outbox pattern.  Behind the scenes, 
 it relies on Oban and ConCache.
 
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `event_bus` to your list of dependencies in `mix.exs`:
+by adding `ex_event_bus` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:event_bus, "~> 0.1.0"}
+    {:ex_event_bus, "~> 0.2.0"}
   ]
 end
 ```
@@ -32,7 +32,7 @@ mix test
 
   ```elixir
   defmodule MyApp.EventBus do
-    use EventBus, otp_app: :my_app
+    use ExEventBus, otp_app: :my_app
   end
   ```
 
@@ -58,7 +58,7 @@ mix test
 
   ```elixir 
   defmodule MyApp.Events do
-    use EventBus.Event
+    use ExEventBus.Event
 
     defevent(MyEvent)
   end
@@ -68,11 +68,11 @@ mix test
 
   ```elixir
   defmodule MyApp.EventHandler do
-    use EventBus.EventHandler,
+    use ExEventBus.EventHandler,
       event_bus: MyApp.EventBus,
       events: [MyApp.Events.MyEvent]
 
-    @impl EventBus.EventHandler
+    @impl ExEventBus.EventHandler
     def handle_event(%MyApp.Events.MyEvent{aggregate: %{"id" => aggregate_id}}) do
       # ... handle the event here
     end

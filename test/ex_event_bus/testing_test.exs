@@ -1,15 +1,15 @@
-defmodule EventBus.TestingTest do
+defmodule ExEventBus.TestingTest do
   use ExUnit.Case, async: false
-  use EventBus.Testing, event_bus: EventBus.TestEventBus
+  use ExEventBus.Testing, ex_event_bus: ExEventBus.TestEventBus
 
   alias Ecto.Adapters.SQL.Sandbox
-  alias EventBus.OtherTestEventHandler
-  alias EventBus.TestEventBus
-  alias EventBus.TestEventHandler
-  alias EventBus.TestEvents
+  alias ExEventBus.OtherTestEventHandler
+  alias ExEventBus.TestEventBus
+  alias ExEventBus.TestEventHandler
+  alias ExEventBus.TestEvents
 
   setup tags do
-    pid = Sandbox.start_owner!(EventBus.Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(ExEventBus.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 
@@ -38,28 +38,28 @@ defmodule EventBus.TestingTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish(event)
 
-      assert_event_received(EventBus.TestEvents.TestEvent)
+      assert_event_received(ExEventBus.TestEvents.TestEvent)
     end
   end
 
@@ -74,7 +74,7 @@ defmodule EventBus.TestingTest do
       assert [] = TestEventBus.publish(event)
 
       assert_raise ExUnit.AssertionError, fn ->
-        assert_event_received(EventBus.TestEvents.TestEvent)
+        assert_event_received(ExEventBus.TestEvents.TestEvent)
       end
     end
   end
@@ -98,29 +98,29 @@ defmodule EventBus.TestingTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish(event)
 
-      assert_event_received(EventBus.TestEvents.TestEvent,
-        args: %{event_handler: EventBus.OtherTestEventHandler}
+      assert_event_received(ExEventBus.TestEvents.TestEvent,
+        args: %{event_handler: ExEventBus.OtherTestEventHandler}
       )
     end
   end
@@ -136,8 +136,8 @@ defmodule EventBus.TestingTest do
       assert [] = TestEventBus.publish(event)
 
       assert_raise ExUnit.AssertionError, fn ->
-        assert_event_received(EventBus.TestEvents.TestEvent,
-          args: %{event_handler: EventBus.OtherTestEventHandler}
+        assert_event_received(ExEventBus.TestEvents.TestEvent,
+          args: %{event_handler: ExEventBus.OtherTestEventHandler}
         )
       end
     end
@@ -153,7 +153,7 @@ defmodule EventBus.TestingTest do
 
       assert [] = TestEventBus.publish(event)
 
-      refute_event_received(EventBus.TestEvents.TestEvent)
+      refute_event_received(ExEventBus.TestEvents.TestEvent)
     end
   end
 
@@ -176,29 +176,29 @@ defmodule EventBus.TestingTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish(event)
 
       assert_raise ExUnit.AssertionError, fn ->
-        refute_event_received(EventBus.TestEvents.TestEvent)
+        refute_event_received(ExEventBus.TestEvents.TestEvent)
       end
     end
   end
@@ -213,8 +213,8 @@ defmodule EventBus.TestingTest do
 
       assert [] = TestEventBus.publish(event)
 
-      refute_event_received(EventBus.TestEvents.TestEvent,
-        args: %{event_handler: EventBus.OtherTestEventHandler}
+      refute_event_received(ExEventBus.TestEvents.TestEvent,
+        args: %{event_handler: ExEventBus.OtherTestEventHandler}
       )
     end
   end
@@ -238,30 +238,30 @@ defmodule EventBus.TestingTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish(event)
 
       assert_raise ExUnit.AssertionError, fn ->
-        refute_event_received(EventBus.TestEvents.TestEvent,
-          args: %{event_handler: EventBus.OtherTestEventHandler}
+        refute_event_received(ExEventBus.TestEvents.TestEvent,
+          args: %{event_handler: ExEventBus.OtherTestEventHandler}
         )
       end
     end
@@ -286,22 +286,22 @@ defmodule EventBus.TestingTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }

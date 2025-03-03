@@ -1,13 +1,13 @@
 import Config
 
-config :event_bus,
-  ecto_repos: [EventBus.Repo]
+config :ex_event_bus,
+  ecto_repos: [ExEventBus.Repo]
 
-config :event_bus, EventBus.Repo,
+config :ex_event_bus, ExEventBus.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "eventbus_test",
+  database: "ex_event_bus_test",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2,
   migration_lock: false,

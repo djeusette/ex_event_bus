@@ -1,10 +1,10 @@
-defmodule EventBus.EventHandlerTest do
+defmodule ExEventBus.EventHandlerTest do
   use ExUnit.Case, async: true
 
-  alias EventBus.InvalidTestEventHandler
-  alias EventBus.TestEventBus
-  alias EventBus.TestEventHandler
-  alias EventBus.TestEvents
+  alias ExEventBus.InvalidTestEventHandler
+  alias ExEventBus.TestEventBus
+  alias ExEventBus.TestEventHandler
+  alias ExEventBus.TestEvents
 
   describe "InvalidTestEventHandler" do
     setup do

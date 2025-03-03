@@ -1,4 +1,4 @@
-defmodule EventBus.State do
+defmodule ExEventBus.State do
   @moduledoc """
   Uses ETS to define the state of the event bus, particularly the 
   subscribers for each event.

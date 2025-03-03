@@ -1,7 +1,7 @@
 Application.ensure_all_started(:postgrex)
 
-EventBus.Repo.start_link()
+ExEventBus.Repo.start_link()
 
 ExUnit.start()
 
-Ecto.Adapters.SQL.Sandbox.mode(EventBus.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(ExEventBus.Repo, :manual)

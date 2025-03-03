@@ -1,15 +1,15 @@
-defmodule EventBusTest do
+defmodule ExEventBusTest do
   use ExUnit.Case, async: false
-  use Oban.Testing, repo: EventBus.TestEventBus.repo()
+  use Oban.Testing, repo: ExEventBus.TestEventBus.repo()
 
   alias Ecto.Adapters.SQL.Sandbox
-  alias EventBus.OtherTestEventHandler
-  alias EventBus.TestEventBus
-  alias EventBus.TestEventHandler
-  alias EventBus.TestEvents
+  alias ExEventBus.OtherTestEventHandler
+  alias ExEventBus.TestEventBus
+  alias ExEventBus.TestEventHandler
+  alias ExEventBus.TestEvents
 
   setup tags do
-    pid = Sandbox.start_owner!(EventBus.Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(ExEventBus.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 
@@ -35,7 +35,10 @@ defmodule EventBusTest do
 
     test "with event as string, adds the subscriber to the subscriber list for the given event" do
       assert :ok =
-               TestEventBus.subscribe("Elixir.EventBus.TestEvents.TestEvent", :subscriber_module)
+               TestEventBus.subscribe(
+                 "Elixir.ExEventBus.TestEvents.TestEvent",
+                 :subscriber_module
+               )
     end
   end
 
@@ -88,45 +91,45 @@ defmodule EventBusTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish(event)
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.TestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.TestEventHandler",
           "metadata" => nil
         }
       )
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
           "metadata" => nil
         }
       )
@@ -147,87 +150,87 @@ defmodule EventBusTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "Jane"},
                    "changes" => %{"name" => "Jane"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "Jane"},
                    "changes" => %{"name" => "Jane"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish([event, event2])
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.TestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.TestEventHandler",
           "metadata" => nil
         }
       )
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
           "metadata" => nil
         }
       )
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "Jane"},
           "changes" => %{"name" => "Jane"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.TestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.TestEventHandler",
           "metadata" => nil
         }
       )
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "Jane"},
           "changes" => %{"name" => "Jane"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
           "metadata" => nil
         }
       )
@@ -242,12 +245,12 @@ defmodule EventBusTest do
 
       assert [] = TestEventBus.publish(event)
 
-      refute_enqueued(worker: EventBus.Worker)
+      refute_enqueued(worker: ExEventBus.Worker)
     end
 
     test "publishes an actual struct in the event" do
       aggregate =
-        %EventBus.TestStruct{
+        %ExEventBus.TestStruct{
           id: Ecto.UUID.generate(),
           name: "John",
           inserted_at: DateTime.utc_now()
@@ -261,45 +264,45 @@ defmodule EventBusTest do
 
       assert [
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.TestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
                  }
                },
                %Oban.Job{
-                 worker: "EventBus.Worker",
+                 worker: "ExEventBus.Worker",
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
-                   "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
                    "metadata" => nil
                  }
                }
              ] = TestEventBus.publish(event)
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.TestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.TestEventHandler",
           "metadata" => nil
         }
       )
 
       assert_enqueued(
-        worker: EventBus.Worker,
+        worker: ExEventBus.Worker,
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
-          "event" => "Elixir.EventBus.TestEvents.TestEvent",
-          "event_handler" => "Elixir.EventBus.OtherTestEventHandler",
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
           "metadata" => nil
         }
       )
@@ -334,7 +337,7 @@ defmodule EventBusTest do
 
       assert :insert_event_bus_jobs = key
 
-      refute_enqueued(worker: EventBus.Worker)
+      refute_enqueued(worker: ExEventBus.Worker)
     end
 
     test "with multiple events, updates the multi" do
@@ -360,7 +363,7 @@ defmodule EventBusTest do
 
       assert :insert_event_bus_jobs = key
 
-      refute_enqueued(worker: EventBus.Worker)
+      refute_enqueued(worker: ExEventBus.Worker)
     end
 
     test "when there are no subscribers to the event, does not update the multi" do
@@ -374,13 +377,13 @@ defmodule EventBusTest do
 
       assert ^multi = TestEventBus.publish(multi, event)
 
-      refute_enqueued(worker: EventBus.Worker)
+      refute_enqueued(worker: ExEventBus.Worker)
     end
   end
 
   describe "repo/0" do
     test "returns the repo used by Oban" do
-      assert TestEventBus.repo() == EventBus.Repo
+      assert TestEventBus.repo() == ExEventBus.Repo
     end
   end
 end

@@ -1,4 +1,4 @@
-defmodule EventBus.Event do
+defmodule ExEventBus.Event do
   @moduledoc """
   Defines macros to define events
   """
@@ -30,7 +30,7 @@ defmodule EventBus.Event do
   end
 
   @doc """
-  Returns true if `term` is an EventBus.Event; otherwise returns `false`.
+  Returns true if `term` is an ExEventBus.Event; otherwise returns `false`.
   Allowed in guard tests.
   ## Examples
       iex> is_event(%MyEvent{})
@@ -52,7 +52,7 @@ defmodule EventBus.Event do
   end
 
   @doc """
-  Returns true if `term` is an EventBus.Event of `name`; otherwise returns `false`.
+  Returns true if `term` is an ExEventBus.Event of `name`; otherwise returns `false`.
   Allowed in guard tests.
   ## Examples
       iex> is_event(%MyEvent{}, MyEvent)
@@ -132,7 +132,7 @@ defmodule EventBus.Event do
       event_struct
     else
       _ ->
-        raise ArgumentError, "#{inspect(event)} is not a module defining an EventBus.Event"
+        raise ArgumentError, "#{inspect(event)} is not a module defining an ExEventBus.Event"
     end
   end
 
@@ -153,7 +153,7 @@ defmodule EventBus.Event do
 
   defmacro __using__(_) do
     quote location: :keep do
-      import EventBus.Event
+      import ExEventBus.Event
     end
   end
 end

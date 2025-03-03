@@ -1,11 +1,11 @@
-defmodule EventBus.TestEventHandler do
+defmodule ExEventBus.TestEventHandler do
   @moduledoc """
   Defines an event handler for test purposes
   """
 
-  use EventBus.EventHandler,
-    event_bus: EventBus.TestEventBus,
-    events: ["Elixir.EventBus.TestEvents.TestEvent", EventBus.TestEvents.TestEvent1]
+  use ExEventBus.EventHandler,
+    ex_event_bus: ExEventBus.TestEventBus,
+    events: ["Elixir.ExEventBus.TestEvents.TestEvent", ExEventBus.TestEvents.TestEvent1]
 
   def handle_event(event) when is_event(event), do: {:ok, event}
 end

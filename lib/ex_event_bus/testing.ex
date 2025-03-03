@@ -1,15 +1,15 @@
-defmodule EventBus.Testing do
+defmodule ExEventBus.Testing do
   @moduledoc """
   Defines functions to perform event assertions
   """
 
   defmacro __using__(opts) do
-    if not Keyword.has_key?(opts, :event_bus) do
-      raise ArgumentError, "testing requires a :event_bus option to be set"
+    if not Keyword.has_key?(opts, :ex_event_bus) do
+      raise ArgumentError, "testing requires a :ex_event_bus option to be set"
     end
 
     quote do
-      @event_bus Keyword.fetch!(unquote(opts), :event_bus)
+      @event_bus Keyword.fetch!(unquote(opts), :ex_event_bus)
       @repo @event_bus.repo()
 
       use Oban.Testing, repo: @repo
@@ -21,7 +21,7 @@ defmodule EventBus.Testing do
         do: refute_enqueued(build_oban_opts(event, opts), timeout)
 
       def execute_events(opts \\ []) do
-        Oban.drain_queue(@event_bus.Oban, Keyword.put_new(opts, :queue, :event_bus))
+        Oban.drain_queue(@event_bus.Oban, Keyword.put_new(opts, :queue, :ex_event_bus))
       end
 
       defp build_oban_opts(event, opts) do
@@ -30,8 +30,8 @@ defmodule EventBus.Testing do
           |> Map.put(:event, event)
 
         opts
-        |> Keyword.put(:queue, :event_bus)
-        |> Keyword.put(:worker, EventBus.Worker)
+        |> Keyword.put(:queue, :ex_event_bus)
+        |> Keyword.put(:worker, ExEventBus.Worker)
         |> Keyword.put(:args, args)
       end
     end

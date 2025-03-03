@@ -1,6 +1,6 @@
-defmodule EventBus.TestStruct do
+defmodule ExEventBus.TestStruct do
   @moduledoc """
-  Defines a struct to test the EventBus serialization
+  Defines a struct to test the ExEventBus serialization
   """
 
   @derive JSON.Encoder

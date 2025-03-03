@@ -1,14 +1,14 @@
-defmodule EventBus.Publisher do
+defmodule ExEventBus.Publisher do
   @moduledoc """
   Publishes events to the event bus.
   """
 
-  use EventBus.Event
+  use ExEventBus.Event
 
-  alias EventBus.Worker
+  alias ExEventBus.Worker
 
   @doc """
-  Publishes the events by enqueueing the EventBus.Worker jobs in the Oban queue.
+  Publishes the events by enqueueing the ExEventBus.Worker jobs in the Oban queue.
   Takes the oban instance name and the job changesets as input.
   Returns the list of the enqueued Oban.Jobs.
   """
@@ -28,7 +28,7 @@ defmodule EventBus.Publisher do
   """
   @spec create_job_changesets(
           subscribers :: list(atom),
-          event :: EventBus.Event.t(),
+          event :: ExEventBus.Event.t(),
           acc :: list(Ecto.Changeset.t())
         ) ::
           list(Ecto.Changeset.t())

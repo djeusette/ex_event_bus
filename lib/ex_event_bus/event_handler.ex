@@ -1,21 +1,21 @@
-defmodule EventBus.EventHandler do
+defmodule ExEventBus.EventHandler do
   @moduledoc false
 
   alias __MODULE__
 
-  @callback handle_event(EventBus.Event.t()) :: :ok | {:ok, any} | :error | {:error, any}
+  @callback handle_event(ExEventBus.Event.t()) :: :ok | {:ok, any} | :error | {:error, any}
 
   defmacro __using__(opts) do
-    if not Keyword.has_key?(opts, :event_bus) do
-      raise ArgumentError, "EventHandler requires a :event_bus option to be set"
+    if not Keyword.has_key?(opts, :ex_event_bus) do
+      raise ArgumentError, "EventHandler requires a :ex_event_bus option to be set"
     end
 
     quote bind_quoted: [opts: opts], location: :keep do
       use GenServer, restart: :transient
-      use EventBus.Event
+      use ExEventBus.Event
 
       @opts opts
-      @event_bus Keyword.fetch!(opts, :event_bus)
+      @event_bus Keyword.fetch!(opts, :ex_event_bus)
 
       def start_link(opts),
         do: GenServer.start_link(__MODULE__, Keyword.merge(opts, @opts), name: __MODULE__)

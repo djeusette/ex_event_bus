@@ -1,9 +1,9 @@
-defmodule EventBus.InvalidTestEventHandler do
+defmodule ExEventBus.InvalidTestEventHandler do
   @moduledoc """
   Defines an invaliad event handler for test purposes
   """
 
-  use EventBus.EventHandler,
-    event_bus: EventBus.TestEventBus,
-    events: [EventBus.TestEvents.TestEvent, EventBus.TestEvents.TestEvent1]
+  use ExEventBus.EventHandler,
+    ex_event_bus: ExEventBus.TestEventBus,
+    events: [ExEventBus.TestEvents.TestEvent, ExEventBus.TestEvents.TestEvent1]
 end

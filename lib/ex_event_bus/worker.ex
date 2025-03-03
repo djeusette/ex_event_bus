@@ -1,13 +1,13 @@
-defmodule EventBus.Worker do
+defmodule ExEventBus.Worker do
   @moduledoc """
-  This Oban worker handles the EventBus events
+  This Oban worker handles the ExEventBus events
   """
 
   use Oban.Worker,
-    queue: :event_bus,
-    tags: ["EventBus"]
+    queue: :ex_event_bus,
+    tags: ["ex_event_bus"]
 
-  use EventBus.Event
+  use ExEventBus.Event
 
   @impl Oban.Worker
   def perform(%Oban.Job{} = job) do

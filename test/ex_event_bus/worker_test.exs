@@ -1,14 +1,14 @@
-defmodule EventBus.WorkerTest do
+defmodule ExEventBus.WorkerTest do
   use ExUnit.Case, async: false
-  use EventBus.Event
-  use Oban.Testing, repo: EventBus.TestEventBus.repo()
+  use ExEventBus.Event
+  use Oban.Testing, repo: ExEventBus.TestEventBus.repo()
 
   alias Ecto.Adapters.SQL.Sandbox
-  alias EventBus.TestEvents
-  alias EventBus.Worker
+  alias ExEventBus.TestEvents
+  alias ExEventBus.Worker
 
   setup tags do
-    pid = Sandbox.start_owner!(EventBus.Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(ExEventBus.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 
@@ -27,11 +27,11 @@ defmodule EventBus.WorkerTest do
                  inserted_at: DateTime.utc_now(),
                  attempt: 2,
                  args: %{
-                   "event" => "Elixir.EventBus.TestEvents.TestEvent",
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
                    "aggregate" => Map.get(event, "aggregate"),
                    "changes" => Map.get(event, "changes"),
                    "metadata" => Map.get(event, "metadata"),
-                   "event_handler" => "Elixir.EventBus.TestEventHandler"
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler"
                  }
                })
 

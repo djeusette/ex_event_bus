@@ -1,4 +1,4 @@
-defmodule EventBus.EctoRepoWrapper do
+defmodule ExEventBus.EctoRepoWrapper do
   @moduledoc """
   Wraps the Ecto Repo functions to add event support with the same interface
   """
@@ -91,14 +91,14 @@ defmodule EventBus.EctoRepoWrapper do
   end
 
   defmacro __using__(opts) do
-    if not Keyword.has_key?(opts, :event_bus) do
-      raise ArgumentError, "EctoRepoWrapper requires a :event_bus option to be set"
+    if not Keyword.has_key?(opts, :ex_event_bus) do
+      raise ArgumentError, "EctoRepoWrapper requires a :ex_event_bus option to be set"
     end
 
     quote bind_quoted: [opts: opts], location: :keep do
-      import EventBus.EctoRepoWrapper
+      import ExEventBus.EctoRepoWrapper
 
-      @event_bus Keyword.fetch!(opts, :event_bus)
+      @event_bus Keyword.fetch!(opts, :ex_event_bus)
 
       if Code.ensure_loaded?(Ecto.Repo) do
         alias Ecto.Multi
@@ -145,7 +145,7 @@ defmodule EventBus.EctoRepoWrapper do
           if should_publish_event?(result, operation, opts) do
             changes = Keyword.get(opts, :changes)
             metadata = Keyword.get(opts, :event_metadata)
-            events = EventBus.Event.build_events(event, result, changes, metadata)
+            events = ExEventBus.Event.build_events(event, result, changes, metadata)
 
             @event_bus.publish(Multi.new(), events)
           else

@@ -1,10 +1,10 @@
-defmodule EventBus.EventTest do
+defmodule ExEventBus.EventTest do
   @moduledoc """
   We use the TestEvents defined in the support directory to test the event bus.
   """
 
   use ExUnit.Case, async: true
-  use EventBus.Event
+  use ExEventBus.Event
 
   defmodule TestStruct do
     defstruct [:aggregate, :changes, :metadata]
@@ -12,31 +12,36 @@ defmodule EventBus.EventTest do
 
   describe "build_event/4" do
     test "when event is not a module" do
-      assert_raise ArgumentError, ":event is not a module defining an EventBus.Event", fn ->
-        build_event(:event, %EventBus.TestEvents.TestEvent{}, %{}, %{})
+      assert_raise ArgumentError, ":event is not a module defining an ExEventBus.Event", fn ->
+        build_event(:event, %ExEventBus.TestEvents.TestEvent{}, %{}, %{})
       end
     end
 
     test "when event is not a module that defines a struct" do
       assert_raise ArgumentError,
-                   "EventBus.Publisher is not a module defining an EventBus.Event",
+                   "ExEventBus.Publisher is not a module defining an ExEventBus.Event",
                    fn ->
-                     build_event(EventBus.Publisher, %EventBus.TestEvents.TestEvent{}, %{}, %{})
+                     build_event(
+                       ExEventBus.Publisher,
+                       %ExEventBus.TestEvents.TestEvent{},
+                       %{},
+                       %{}
+                     )
                    end
     end
 
-    test "when event is not a module that defines an EventBus event" do
+    test "when event is not a module that defines an ExEventBus event" do
       assert_raise ArgumentError,
-                   "EventBus.EventTest.TestStruct is not a module defining an EventBus.Event",
+                   "ExEventBus.EventTest.TestStruct is not a module defining an ExEventBus.Event",
                    fn ->
-                     build_event(TestStruct, %EventBus.TestEvents.TestEvent{}, %{}, %{})
+                     build_event(TestStruct, %ExEventBus.TestEvents.TestEvent{}, %{}, %{})
                    end
     end
 
-    test "build the EventBus event" do
-      assert %EventBus.TestEvents.TestEvent{aggregate: %TestStruct{aggregate: %{foo: "bar"}}} =
+    test "build the ExEventBus event" do
+      assert %ExEventBus.TestEvents.TestEvent{aggregate: %TestStruct{aggregate: %{foo: "bar"}}} =
                build_event(
-                 EventBus.TestEvents.TestEvent,
+                 ExEventBus.TestEvents.TestEvent,
                  %TestStruct{aggregate: %{foo: "bar"}},
                  %{},
                  %{}
@@ -56,9 +61,9 @@ defmodule EventBus.EventTest do
     end
 
     test "when one event is provided in the list" do
-      assert [%EventBus.TestEvents.TestEvent{aggregate: %TestStruct{aggregate: %{foo: "bar"}}}] =
+      assert [%ExEventBus.TestEvents.TestEvent{aggregate: %TestStruct{aggregate: %{foo: "bar"}}}] =
                build_events(
-                 [EventBus.TestEvents.TestEvent],
+                 [ExEventBus.TestEvents.TestEvent],
                  %TestStruct{aggregate: %{foo: "bar"}},
                  %{},
                  %{}
@@ -67,11 +72,11 @@ defmodule EventBus.EventTest do
 
     test "when multiple events are provided in the list" do
       assert [
-               %EventBus.TestEvents.TestEvent{aggregate: %TestStruct{aggregate: %{foo: "bar"}}},
-               %EventBus.TestEvents.TestEvent1{aggregate: %TestStruct{aggregate: %{foo: "bar"}}}
+               %ExEventBus.TestEvents.TestEvent{aggregate: %TestStruct{aggregate: %{foo: "bar"}}},
+               %ExEventBus.TestEvents.TestEvent1{aggregate: %TestStruct{aggregate: %{foo: "bar"}}}
              ] =
                build_events(
-                 [EventBus.TestEvents.TestEvent, EventBus.TestEvents.TestEvent1],
+                 [ExEventBus.TestEvents.TestEvent, ExEventBus.TestEvents.TestEvent1],
                  %TestStruct{aggregate: %{foo: "bar"}},
                  %{},
                  %{}
@@ -82,27 +87,27 @@ defmodule EventBus.EventTest do
   describe "defevent/1" do
     test "creates a module with the given name" do
       assert %_{aggregate: nil, changes: nil, metadata: nil} =
-               struct(EventBus.TestEvents.TestEvent)
+               struct(ExEventBus.TestEvents.TestEvent)
     end
   end
 
   describe "defevents/1" do
     test "creates multiple modules with the given names" do
       assert %_{aggregate: nil, changes: nil, metadata: nil} =
-               struct(EventBus.TestEvents.TestEvent1)
+               struct(ExEventBus.TestEvents.TestEvent1)
 
       assert %_{aggregate: nil, changes: nil, metadata: nil} =
-               struct(EventBus.TestEvents.TestEvent2)
+               struct(ExEventBus.TestEvents.TestEvent2)
     end
   end
 
   describe "is_event" do
-    test "returns true when the struct is an EventBus.Event" do
-      struct = struct(EventBus.TestEvents.TestEvent, %{})
+    test "returns true when the struct is an ExEventBus.Event" do
+      struct = struct(ExEventBus.TestEvents.TestEvent, %{})
       assert is_event(struct)
     end
 
-    test "returns false when the provided term is not an EventBus.Event" do
+    test "returns false when the provided term is not an ExEventBus.Event" do
       refute is_event(%{})
     end
   end

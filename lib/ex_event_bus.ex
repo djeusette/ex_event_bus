@@ -1,4 +1,4 @@
-defmodule EventBus do
+defmodule ExEventBus do
   @moduledoc """
   The event bus dispatches events to subscribers.
   It uses Oban behind the scenes to ensure exactly once delivery.
@@ -9,12 +9,12 @@ defmodule EventBus do
 
   defmacro __using__(opts) do
     if not Keyword.has_key?(opts, :otp_app) do
-      raise ArgumentError, "EventBus requires a :otp_app option to be set"
+      raise ArgumentError, "ExEventBus requires a :otp_app option to be set"
     end
 
     quote bind_quoted: [opts: opts], location: :keep do
       use Supervisor
-      use EventBus.Event
+      use ExEventBus.Event
 
       @opts opts
       @otp_app Keyword.fetch!(opts, :otp_app)
@@ -35,11 +35,11 @@ defmodule EventBus do
         do: Supervisor.init(children(opts), strategy: :one_for_one)
 
       def subscribe(event_mod, subscriber) when is_atom(event_mod) do
-        EventBus.State.add_subscriber(__MODULE__.State, event_mod, subscriber)
+        State.add_subscriber(__MODULE__.State, event_mod, subscriber)
       end
 
       def subscribe(event_mod, subscriber) when is_binary(event_mod) do
-        EventBus.State.add_subscriber(
+        State.add_subscriber(
           __MODULE__.State,
           String.to_existing_atom(event_mod),
           subscriber
@@ -52,13 +52,14 @@ defmodule EventBus do
       def subscribers(event_mod) when is_atom(event_mod),
         do: State.get_subscribers(__MODULE__.State, event_mod)
 
-      @spec publish(event :: EventBus.Event.t() | list(EventBus.Event.t())) :: list(Oban.Job.t())
+      @spec publish(event :: ExEventBus.Event.t() | list(ExEventBus.Event.t())) ::
+              list(Oban.Job.t())
       def publish(event),
         do: Publisher.publish(__MODULE__.Oban, create_job_changesets_for_events(List.wrap(event)))
 
       @spec publish(
               multi :: Ecto.Multi.t(),
-              event :: EventBus.Event.t() | list(EventBus.Event.t())
+              event :: ExEventBus.Event.t() | list(ExEventBus.Event.t())
             ) ::
               multi :: Ecto.Multi.t()
       def publish(%Ecto.Multi{} = multi, event),
