@@ -6,5 +6,6 @@ defmodule ExEventBus.TestEvents do
   use ExEventBus.Event
 
   defevent(TestEvent)
+  defevent(RaiseEvent)
   defevents([TestEvent1, TestEvent2])
 end

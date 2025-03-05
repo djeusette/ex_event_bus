@@ -21,7 +21,12 @@ defmodule ExEventBus.Testing do
         do: refute_enqueued(build_oban_opts(event, opts), timeout)
 
       def execute_events(opts \\ []) do
-        Oban.drain_queue(@event_bus.Oban, Keyword.put_new(opts, :queue, :ex_event_bus))
+        Oban.drain_queue(
+          @event_bus.Oban,
+          opts
+          |> Keyword.put_new(:queue, :ex_event_bus)
+          |> Keyword.put(:with_safety, false)
+        )
       end
 
       defp build_oban_opts(event, opts) do

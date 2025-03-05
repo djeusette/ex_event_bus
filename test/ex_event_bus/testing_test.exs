@@ -309,5 +309,28 @@ defmodule ExEventBus.TestingTest do
 
       assert %{discard: 0, cancelled: 0, success: 2, failure: 0, snoozed: 0} = execute_events()
     end
+
+    test "raises when an unhandled error occurs" do
+      event =
+        struct(TestEvents.RaiseEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{name: "John"}
+        })
+
+      assert [
+               %Oban.Job{
+                 worker: "ExEventBus.Worker",
+                 args: %{
+                   "aggregate" => %{"name" => "John"},
+                   "changes" => %{"name" => "John"},
+                   "event" => "Elixir.ExEventBus.TestEvents.RaiseEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
+                   "metadata" => nil
+                 }
+               }
+             ] = TestEventBus.publish(event)
+
+      assert_raise RuntimeError, "RaiseEvent", fn -> execute_events() end
+    end
   end
 end
