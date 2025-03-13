@@ -108,7 +108,9 @@ defmodule ExEventBus.EctoRepoWrapper do
                        insert: 2,
                        insert!: 2,
                        update: 2,
-                       update!: 2
+                       update!: 2,
+                       insert_or_update: 2,
+                       insert_or_update!: 2
 
         redeffn(:delete)
         redeffn(:delete!)
@@ -116,6 +118,8 @@ defmodule ExEventBus.EctoRepoWrapper do
         redeffn(:insert!)
         redeffn(:update)
         redeffn(:update!)
+        redeffn(:insert_or_update)
+        redeffn(:insert_or_update!)
 
         defp wrap_repo_function(repo_func, opts, operation) when is_function(repo_func, 0) do
           success_event = Keyword.get(opts, :success_event)
