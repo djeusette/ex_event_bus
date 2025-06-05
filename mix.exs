@@ -4,7 +4,7 @@ defmodule ExEventBus.MixProject do
   def project do
     [
       app: :ex_event_bus,
-      version: "0.3.0",
+      version: "0.4.0",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -45,7 +45,8 @@ it relies on Oban and ConCache."
       {:con_cache, "~> 1.1"},
       {:oban, "~> 2.19"},
       {:postgrex, ">= 0.0.0"},
-      {:ex_doc, "~> 0.37", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.38", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

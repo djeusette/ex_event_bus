@@ -12,13 +12,21 @@ defmodule ExEventBus.Testing do
       @event_bus Keyword.fetch!(unquote(opts), :ex_event_bus)
       @repo @event_bus.repo()
 
-      use Oban.Testing, repo: @repo
+      def assert_event_received(event, opts \\ [], timeout \\ :none) do
+        if timeout == :none do
+          Oban.Testing.assert_enqueued(build_oban_opts(event, opts))
+        else
+          Oban.Testing.assert_enqueued(build_oban_opts(event, opts), timeout)
+        end
+      end
 
-      def assert_event_received(event, opts \\ [], timeout \\ :none),
-        do: assert_enqueued(build_oban_opts(event, opts), timeout)
-
-      def refute_event_received(event, opts \\ [], timeout \\ :none),
-        do: refute_enqueued(build_oban_opts(event, opts), timeout)
+      def refute_event_received(event, opts \\ [], timeout \\ :none) do
+        if timeout == :none do
+          Oban.Testing.refute_enqueued(build_oban_opts(event, opts))
+        else
+          Oban.Testing.refute_enqueued(build_oban_opts(event, opts), timeout)
+        end
+      end
 
       def execute_events(opts \\ []) do
         Oban.drain_queue(
@@ -37,6 +45,7 @@ defmodule ExEventBus.Testing do
         opts
         |> Keyword.put(:queue, :ex_event_bus)
         |> Keyword.put(:worker, ExEventBus.Worker)
+        |> Keyword.put(:repo, @repo)
         |> Keyword.put(:args, args)
       end
     end

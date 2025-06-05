@@ -25,3 +25,4 @@ event_bus-*.tar
 .lexical
 .elixir_ls
 .DS_Store
+.tool-versions
