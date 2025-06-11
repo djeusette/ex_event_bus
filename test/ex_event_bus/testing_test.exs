@@ -277,7 +277,7 @@ defmodule ExEventBus.TestingTest do
       :ok
     end
 
-    test "execute the received events" do
+    test "executes the received events" do
       event =
         struct(TestEvents.TestEvent, %{
           aggregate: %{name: "John"},
@@ -331,6 +331,129 @@ defmodule ExEventBus.TestingTest do
              ] = TestEventBus.publish(event)
 
       assert_raise RuntimeError, "RaiseEvent", fn -> execute_events() end
+    end
+
+    test "executes events for a given event handler only when the option is provided" do
+      event =
+        struct(TestEvents.TestEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{name: "John"}
+        })
+
+      assert [
+               %Oban.Job{
+                 worker: "ExEventBus.Worker",
+                 args: %{
+                   "aggregate" => %{"name" => "John"},
+                   "changes" => %{"name" => "John"},
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
+                   "metadata" => nil
+                 }
+               },
+               %Oban.Job{
+                 worker: "ExEventBus.Worker",
+                 args: %{
+                   "aggregate" => %{"name" => "John"},
+                   "changes" => %{"name" => "John"},
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
+                   "metadata" => nil
+                 }
+               }
+             ] = TestEventBus.publish(event)
+
+      assert [%Oban.Job{}, %Oban.Job{}] = all_received()
+
+      assert %{discard: 0, cancelled: 0, success: 1, failure: 0, snoozed: 0} =
+               execute_events(event_handler: "Elixir.ExEventBus.OtherTestEventHandler")
+
+      assert [%Oban.Job{args: %{"event_handler" => "Elixir.ExEventBus.TestEventHandler"}}] =
+               all_received()
+
+      assert %{discard: 0, cancelled: 0, success: 0, failure: 0, snoozed: 0} =
+               execute_events(event_handler: "Elixir.ExEventBus.OtherTestEventHandler")
+
+      assert [%Oban.Job{args: %{"event_handler" => "Elixir.ExEventBus.TestEventHandler"}}] =
+               all_received()
+
+      assert %{discard: 0, cancelled: 0, success: 1, failure: 0, snoozed: 0} =
+               execute_events(event_handler: "Elixir.ExEventBus.TestEventHandler")
+
+      assert [] = all_received()
+
+      assert %{discard: 0, cancelled: 0, success: 0, failure: 0, snoozed: 0} =
+               execute_events(event_handler: "Elixir.ExEventBus.TestEventHandler")
+
+      assert [] = all_received()
+
+      assert %{discard: 0, cancelled: 0, success: 0, failure: 0, snoozed: 0} =
+               execute_events()
+
+      assert [] = all_received()
+    end
+
+    test "does not execute events when there are no events to execute for a given event handler" do
+      assert %{discard: 0, cancelled: 0, success: 0, failure: 0, snoozed: 0} =
+               execute_events(event_handler: "Elixir.ExEventBus.TestEventHandler")
+
+      assert [] = all_received()
+
+      assert %{discard: 0, cancelled: 0, success: 0, failure: 0, snoozed: 0} =
+               execute_events(event_handler: "Elixir.ExEventBus.OtherTestEventHandler")
+
+      assert [] = all_received()
+    end
+
+    test "does not execute events when there no events were received" do
+      assert %{discard: 0, cancelled: 0, success: 0, failure: 0, snoozed: 0} =
+               execute_events()
+
+      assert [] = all_received()
+    end
+  end
+
+  describe "all_received/1" do
+    setup do
+      assert {:ok, _handler} = start_supervised({TestEventHandler, [event_bus: TestEventBus]})
+
+      assert {:ok, _handler} =
+               start_supervised({OtherTestEventHandler, [event_bus: TestEventBus]})
+
+      :ok
+    end
+
+    test "returns the received events once per event handler" do
+      event =
+        struct(TestEvents.TestEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{name: "John"}
+        })
+
+      assert [
+               %Oban.Job{
+                 worker: "ExEventBus.Worker",
+                 args: %{
+                   "aggregate" => %{"name" => "John"},
+                   "changes" => %{"name" => "John"},
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.TestEventHandler",
+                   "metadata" => nil
+                 }
+               },
+               %Oban.Job{
+                 worker: "ExEventBus.Worker",
+                 args: %{
+                   "aggregate" => %{"name" => "John"},
+                   "changes" => %{"name" => "John"},
+                   "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+                   "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler",
+                   "metadata" => nil
+                 }
+               }
+             ] = TestEventBus.publish(event)
+
+      assert [%Oban.Job{}, %Oban.Job{}] = all_received()
     end
   end
 end
