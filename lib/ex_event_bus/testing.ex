@@ -14,6 +14,8 @@ defmodule ExEventBus.Testing do
       @event_bus Keyword.fetch!(unquote(opts), :ex_event_bus)
       @repo @event_bus.repo()
 
+      alias unquote(Keyword.fetch!(opts, :ex_event_bus))
+
       def assert_event_received(event, opts \\ [], timeout \\ :none) do
         if timeout == :none do
           Oban.Testing.assert_enqueued(build_oban_opts_with_event(event, opts))

@@ -4,7 +4,6 @@ defmodule ExEventBus.TestingTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias ExEventBus.OtherTestEventHandler
-  alias ExEventBus.TestEventBus
   alias ExEventBus.TestEventHandler
   alias ExEventBus.TestEvents
 
