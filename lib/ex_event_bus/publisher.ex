@@ -46,6 +46,7 @@ defmodule ExEventBus.Publisher do
       event: event.__struct__,
       aggregate: event.aggregate,
       changes: event.changes,
+      initial_data: event.initial_data,
       metadata: event.metadata,
       event_handler: subscriber
     })

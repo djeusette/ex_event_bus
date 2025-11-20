@@ -3,11 +3,20 @@ defmodule ExEventBus.EctoRepoWrapper do
   Wraps the Ecto Repo functions to add event support with the same interface
   """
 
-  def add_changes_to_event_opts(%{} = changes, opts) do
+  def add_changes_to_event_opts(opts, %{} = changes) do
     updated_event_opts =
       opts
       |> Keyword.get(:event_opts, [])
       |> Keyword.put(:changes, changes)
+
+    Keyword.put(opts, :event_opts, updated_event_opts)
+  end
+
+  def add_initial_data_to_event_opts(opts, %{} = initial_data) do
+    updated_event_opts =
+      opts
+      |> Keyword.get(:event_opts, [])
+      |> Keyword.put(:initial_data, initial_data)
 
     Keyword.put(opts, :event_opts, updated_event_opts)
   end
@@ -26,6 +35,12 @@ defmodule ExEventBus.EctoRepoWrapper do
   end
 
   def get_changes(value), do: value
+
+  def get_initial_data(%Ecto.Changeset{data: data, changes: changes}) do
+    for {key, _new_value} <- changes, into: %{} do
+      {key, Map.get(data, key)}
+    end
+  end
 
   def should_publish_event?(
         record,
@@ -70,10 +85,9 @@ defmodule ExEventBus.EctoRepoWrapper do
 
         wrap_repo_function(
           wrapped_fun,
-          add_changes_to_event_opts(
-            get_changes(changeset),
-            opts
-          ),
+          opts
+          |> add_changes_to_event_opts(get_changes(changeset))
+          |> add_initial_data_to_event_opts(get_initial_data(changeset)),
           unquote(fun)
         )
       end
@@ -148,8 +162,9 @@ defmodule ExEventBus.EctoRepoWrapper do
         defp maybe_publish_events_in_multi(result, operation, event, opts) do
           if should_publish_event?(result, operation, opts) do
             changes = Keyword.get(opts, :changes)
+            initial_data = Keyword.get(opts, :initial_data)
             metadata = Keyword.get(opts, :event_metadata)
-            events = ExEventBus.Event.build_events(event, result, changes, metadata)
+            events = ExEventBus.Event.build_events(event, result, changes, initial_data, metadata)
 
             @event_bus.publish(Multi.new(), events)
           else

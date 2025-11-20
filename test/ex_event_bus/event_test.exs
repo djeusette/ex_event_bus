@@ -7,13 +7,13 @@ defmodule ExEventBus.EventTest do
   use ExEventBus.Event
 
   defmodule TestStruct do
-    defstruct [:aggregate, :changes, :metadata]
+    defstruct [:aggregate, :changes, :initial_data, :metadata]
   end
 
   describe "build_event/4" do
     test "when event is not a module" do
       assert_raise ArgumentError, ":event is not a module defining an ExEventBus.Event", fn ->
-        build_event(:event, %ExEventBus.TestEvents.TestEvent{}, %{}, %{})
+        build_event(:event, %ExEventBus.TestEvents.TestEvent{}, %{}, %{}, %{})
       end
     end
 
@@ -25,6 +25,7 @@ defmodule ExEventBus.EventTest do
                        ExEventBus.Publisher,
                        %ExEventBus.TestEvents.TestEvent{},
                        %{},
+                       %{},
                        %{}
                      )
                    end
@@ -34,7 +35,7 @@ defmodule ExEventBus.EventTest do
       assert_raise ArgumentError,
                    "ExEventBus.EventTest.TestStruct is not a module defining an ExEventBus.Event",
                    fn ->
-                     build_event(TestStruct, %ExEventBus.TestEvents.TestEvent{}, %{}, %{})
+                     build_event(TestStruct, %ExEventBus.TestEvents.TestEvent{}, %{}, %{}, %{})
                    end
     end
 
@@ -44,6 +45,36 @@ defmodule ExEventBus.EventTest do
                  ExEventBus.TestEvents.TestEvent,
                  %TestStruct{aggregate: %{foo: "bar"}},
                  %{},
+                 %{},
+                 %{}
+               )
+    end
+
+    test "build the ExEventBus event with changes" do
+      assert %ExEventBus.TestEvents.TestEvent{
+               aggregate: %TestStruct{aggregate: %{foo: "bar"}},
+               changes: %{foo: "bar"}
+             } =
+               build_event(
+                 ExEventBus.TestEvents.TestEvent,
+                 %TestStruct{aggregate: %{foo: "bar"}},
+                 %{foo: "bar"},
+                 %{},
+                 %{}
+               )
+    end
+
+    test "build the ExEventBus event with initial_data" do
+      assert %ExEventBus.TestEvents.TestEvent{
+               aggregate: %TestStruct{aggregate: %{foo: "bar"}},
+               changes: %{foo: "bar"},
+               initial_data: %{foo: "foo"}
+             } =
+               build_event(
+                 ExEventBus.TestEvents.TestEvent,
+                 %TestStruct{aggregate: %{foo: "bar"}},
+                 %{foo: "bar"},
+                 %{foo: "foo"},
                  %{}
                )
     end
@@ -56,6 +87,7 @@ defmodule ExEventBus.EventTest do
                  [],
                  %TestStruct{aggregate: %{foo: "bar"}},
                  %{},
+                 %{},
                  %{}
                )
     end
@@ -65,6 +97,7 @@ defmodule ExEventBus.EventTest do
                build_events(
                  [ExEventBus.TestEvents.TestEvent],
                  %TestStruct{aggregate: %{foo: "bar"}},
+                 %{},
                  %{},
                  %{}
                )
@@ -79,6 +112,46 @@ defmodule ExEventBus.EventTest do
                  [ExEventBus.TestEvents.TestEvent, ExEventBus.TestEvents.TestEvent1],
                  %TestStruct{aggregate: %{foo: "bar"}},
                  %{},
+                 %{},
+                 %{}
+               )
+    end
+
+    test "when one event is provided with initial_data" do
+      assert [
+               %ExEventBus.TestEvents.TestEvent{
+                 aggregate: %TestStruct{aggregate: %{foo: "bar"}},
+                 changes: %{foo: "bar"},
+                 initial_data: %{foo: "baz"}
+               }
+             ] =
+               build_events(
+                 [ExEventBus.TestEvents.TestEvent],
+                 %TestStruct{aggregate: %{foo: "bar"}},
+                 %{foo: "bar"},
+                 %{foo: "baz"},
+                 %{}
+               )
+    end
+
+    test "when multiple events are provided with initial_data" do
+      assert [
+               %ExEventBus.TestEvents.TestEvent{
+                 aggregate: %TestStruct{aggregate: %{foo: "bar"}},
+                 changes: %{foo: "bar"},
+                 initial_data: %{foo: "baz"}
+               },
+               %ExEventBus.TestEvents.TestEvent1{
+                 aggregate: %TestStruct{aggregate: %{foo: "bar"}},
+                 changes: %{foo: "bar"},
+                 initial_data: %{foo: "baz"}
+               }
+             ] =
+               build_events(
+                 [ExEventBus.TestEvents.TestEvent, ExEventBus.TestEvents.TestEvent1],
+                 %TestStruct{aggregate: %{foo: "bar"}},
+                 %{foo: "bar"},
+                 %{foo: "baz"},
                  %{}
                )
     end
@@ -86,17 +159,17 @@ defmodule ExEventBus.EventTest do
 
   describe "defevent/1" do
     test "creates a module with the given name" do
-      assert %_{aggregate: nil, changes: nil, metadata: nil} =
+      assert %_{aggregate: nil, changes: nil, initial_data: nil, metadata: nil} =
                struct(ExEventBus.TestEvents.TestEvent)
     end
   end
 
   describe "defevents/1" do
     test "creates multiple modules with the given names" do
-      assert %_{aggregate: nil, changes: nil, metadata: nil} =
+      assert %_{aggregate: nil, changes: nil, initial_data: nil, metadata: nil} =
                struct(ExEventBus.TestEvents.TestEvent1)
 
-      assert %_{aggregate: nil, changes: nil, metadata: nil} =
+      assert %_{aggregate: nil, changes: nil, initial_data: nil, metadata: nil} =
                struct(ExEventBus.TestEvents.TestEvent2)
     end
   end

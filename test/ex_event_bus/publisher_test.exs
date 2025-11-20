@@ -86,6 +86,98 @@ defmodule ExEventBus.PublisherTest do
 
       assert [] = Publisher.create_job_changesets([], event)
     end
+
+    test "with one subscriber and initial_data, includes initial_data in job args" do
+      event =
+        struct(ExEventBus.TestEvents.TestEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{name: "John"},
+          initial_data: %{name: "Johnny"}
+        })
+
+      assert [
+               %Ecto.Changeset{
+                 changes: %{
+                   args: %{
+                     metadata: nil,
+                     aggregate: %{name: "John"},
+                     event: ExEventBus.TestEvents.TestEvent,
+                     changes: %{name: "John"},
+                     initial_data: %{name: "Johnny"},
+                     event_handler: ExEventBus.TestEventHandler
+                   },
+                   queue: "ex_event_bus",
+                   worker: "ExEventBus.Worker"
+                 }
+               }
+             ] = Publisher.create_job_changesets([TestEventHandler], event)
+    end
+
+    test "with multiple subscribers and initial_data, all jobs include initial_data" do
+      event =
+        struct(ExEventBus.TestEvents.TestEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{email: "new@example.com"},
+          initial_data: %{email: "old@example.com"}
+        })
+
+      assert [
+               %Ecto.Changeset{
+                 changes: %{
+                   args: %{
+                     metadata: nil,
+                     aggregate: %{name: "John"},
+                     event: ExEventBus.TestEvents.TestEvent,
+                     changes: %{email: "new@example.com"},
+                     initial_data: %{email: "old@example.com"},
+                     event_handler: ExEventBus.OtherTestEventHandler
+                   },
+                   queue: "ex_event_bus",
+                   worker: "ExEventBus.Worker"
+                 }
+               },
+               %Ecto.Changeset{
+                 changes: %{
+                   args: %{
+                     metadata: nil,
+                     aggregate: %{name: "John"},
+                     event: ExEventBus.TestEvents.TestEvent,
+                     changes: %{email: "new@example.com"},
+                     initial_data: %{email: "old@example.com"},
+                     event_handler: ExEventBus.TestEventHandler
+                   },
+                   queue: "ex_event_bus",
+                   worker: "ExEventBus.Worker"
+                 }
+               }
+             ] = Publisher.create_job_changesets([TestEventHandler, OtherTestEventHandler], event)
+    end
+
+    test "with nil initial_data, includes nil in job args" do
+      event =
+        struct(ExEventBus.TestEvents.TestEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{name: "John"},
+          initial_data: nil
+        })
+
+      assert [
+               %Ecto.Changeset{
+                 changes: %{
+                   args: %{
+                     metadata: nil,
+                     aggregate: %{name: "John"},
+                     event: ExEventBus.TestEvents.TestEvent,
+                     changes: %{name: "John"},
+                     initial_data: nil,
+                     event_handler: ExEventBus.TestEventHandler
+                   },
+                   queue: "ex_event_bus",
+                   worker: "ExEventBus.Worker"
+                 }
+               }
+             ] = Publisher.create_job_changesets([TestEventHandler], event)
+    end
   end
 
   describe "publish/3" do
@@ -99,7 +191,8 @@ defmodule ExEventBus.PublisherTest do
       event =
         struct(ExEventBus.TestEvents.TestEvent, %{
           aggregate: %{name: "John"},
-          changes: %{name: "John"}
+          changes: %{name: "John"},
+          initial_data: %{name: "Johnny"}
         })
 
       assert [
@@ -111,6 +204,7 @@ defmodule ExEventBus.PublisherTest do
                  args: %{
                    "aggregate" => %{"name" => "John"},
                    "changes" => %{"name" => "John"},
+                   "initial_data" => %{"name" => "Johnny"},
                    "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
                    "event_handler" => "Elixir.ExEventBus.TestEventHandler",
                    "metadata" => nil
@@ -129,6 +223,7 @@ defmodule ExEventBus.PublisherTest do
         args: %{
           "aggregate" => %{"name" => "John"},
           "changes" => %{"name" => "John"},
+          "initial_data" => %{"name" => "Johnny"},
           "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
           "event_handler" => "Elixir.ExEventBus.TestEventHandler",
           "metadata" => nil
