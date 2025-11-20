@@ -97,7 +97,9 @@ defmodule ExEventBus.EctoRepoWrapper do
 
         wrap_repo_function(
           wrapped_fun,
-          opts,
+          opts
+          |> add_changes_to_event_opts(%{})
+          |> add_initial_data_to_event_opts(%{}),
           unquote(fun)
         )
       end
