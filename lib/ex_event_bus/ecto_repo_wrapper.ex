@@ -5,7 +5,7 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   # Primary key helpers
 
-  defp extract_primary_key_from_struct(struct) when is_struct(struct) do
+  def extract_primary_key_from_struct(struct) when is_struct(struct) do
     schema = struct.__struct__
 
     case schema.__schema__(:primary_key) do
@@ -92,6 +92,7 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   def get_changes(%Ecto.Changeset{} = changeset) do
     # For root changeset: process nested associations but don't add own PK
+    # PK will be added later for inserts only (when ID actually changed from nil to value)
     Enum.reduce(changeset.changes, %{}, fn {key, value}, acc ->
       Map.put(acc, key, get_nested_changes(value))
     end)
@@ -329,7 +330,11 @@ defmodule ExEventBus.EctoRepoWrapper do
 
         defp maybe_publish_events_in_multi(result, operation, event, opts) do
           if should_publish_event?(result, operation, opts) do
-            changes = Keyword.get(opts, :changes)
+            changes =
+              opts
+              |> Keyword.get(:changes)
+              |> maybe_add_primary_key_to_changes(result, operation)
+
             initial_data = Keyword.get(opts, :initial_data)
             metadata = Keyword.get(opts, :event_metadata)
             events = ExEventBus.Event.build_events(event, result, changes, initial_data, metadata)
@@ -339,6 +344,24 @@ defmodule ExEventBus.EctoRepoWrapper do
             Multi.new()
           end
         end
+
+        defp maybe_add_primary_key_to_changes(changes, result, operation)
+             when operation in [:insert, :insert!, :insert_or_update, :insert_or_update!] and
+                    is_struct(result) do
+          # For inserts, update changes map with actual PK value from result
+          case ExEventBus.EctoRepoWrapper.extract_primary_key_from_struct(result) do
+            nil ->
+              changes
+
+            {pk_field, pk_value} ->
+              Map.put(changes, pk_field, pk_value)
+
+            pk_map when is_map(pk_map) ->
+              Map.merge(changes, pk_map)
+          end
+        end
+
+        defp maybe_add_primary_key_to_changes(changes, _result, _operation), do: changes
       end
     end
   end

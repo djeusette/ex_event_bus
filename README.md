@@ -137,12 +137,13 @@ The `changes` and `initial_data` maps provide a complete picture of what changed
 
 #### INSERT Operations
 
-For insertions, `initial_data` contains `nil` values for the fields being set:
+For insertions, the primary key is included in `changes` (it changed from nil to the actual value), and `initial_data` contains `nil` values for the fields being set:
 
 ```elixir
 %UserCreated{
   aggregate: %User{id: 1, name: "John", email: "john@example.com"},
   changes: %{
+    "id" => 1,  # ← Primary key included for inserts
     "name" => "John",
     "email" => "john@example.com"
   },
@@ -433,9 +434,12 @@ end
 
 ### Primary Key Handling
 
-**Root aggregates**: Primary keys are NOT included in `changes` or `initial_data` for the root entity. The primary key is used to identify the aggregate but is not tracked as a "change."
+**Root aggregates**:
+- **INSERT operations**: Primary key IS included in `changes` (it changed from nil to the actual value)
+- **UPDATE operations**: Primary key is NOT included in `changes` (it didn't change)
+- **DELETE operations**: Primary key is NOT included in `changes`
 
-**Nested associations**: Primary keys ARE included to distinguish between creates, updates, and deletes within associations.
+**Nested associations**: Primary keys ARE always included to distinguish between creates, updates, and deletes within associations.
 
 #### Standard Primary Key (`id`)
 
@@ -448,9 +452,10 @@ schema "users" do
   timestamps()
 end
 
-# INSERT: PK not included in root changes
+# INSERT: PK included in root changes (changed from nil → 1)
 %UserCreated{
   changes: %{
+    "id" => 1,
     "name" => "John",
     "email" => "john@example.com"
   },
@@ -460,7 +465,7 @@ end
   }
 }
 
-# UPDATE: PK not included in root changes
+# UPDATE: PK not included in root changes (didn't change)
 %UserUpdated{
   changes: %{
     "email" => "new@example.com"
@@ -483,9 +488,10 @@ schema "api_tokens" do
   timestamps()
 end
 
-# INSERT: Custom PK not included in root changes
+# INSERT: Custom PK included in root changes
 %TokenCreated{
   changes: %{
+    "token_id" => "tok_abc123",
     "secret" => "abc123...",
     "expires_at" => ~N[2025-12-31 23:59:59]
   },
@@ -495,7 +501,7 @@ end
   }
 }
 
-# UPDATE: Custom PK not included in root changes
+# UPDATE: Custom PK not included in root changes (didn't change)
 %TokenUpdated{
   changes: %{
     "expires_at" => ~N[2026-01-31 23:59:59]
@@ -518,9 +524,11 @@ schema "user_permissions" do
   timestamps()
 end
 
-# INSERT: Composite PK not included in root changes
+# INSERT: Composite PK included in root changes
 %PermissionCreated{
   changes: %{
+    "user_id" => 5,
+    "resource_id" => 10,
     "permission_level" => "read"
   },
   initial_data: %{
@@ -528,7 +536,7 @@ end
   }
 }
 
-# UPDATE: Composite PK not included in root changes
+# UPDATE: Composite PK not included in root changes (didn't change)
 %PermissionUpdated{
   changes: %{
     "permission_level" => "write"
@@ -628,6 +636,17 @@ end
   }
 }
 ```
+
+## Supported Field Types
+
+ExEventBus fully supports all Ecto field types, including:
+
+- **Primitive types**: `:string`, `:integer`, `:float`, `:boolean`, `:date`, `:time`, `:naive_datetime`, `:utc_datetime`, etc.
+- **Primitive arrays**: `{:array, :string}`, `{:array, :integer}`, `{:array, Ecto.UUID}`, etc. with `default: []`
+- **Custom types**: Any Ecto type including `Ecto.Enum`, embedded schemas, etc.
+- **Associations**: `has_one`, `has_many`, `belongs_to` with full change tracking
+
+Primitive array fields (like `field(:tags, {:array, :string}, default: [])`) are properly tracked as field changes, while association arrays are tracked with individual item primary keys.
 
 ## Usage with Ecto Operations
 

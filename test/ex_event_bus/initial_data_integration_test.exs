@@ -40,6 +40,7 @@ defmodule ExEventBus.InitialDataIntegrationTest do
         args: %{
           "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserCreated",
           "changes" => %{
+            "id" => user.id,
             "name" => "John",
             "email" => "john@example.com",
             "age" => 30
@@ -71,6 +72,7 @@ defmodule ExEventBus.InitialDataIntegrationTest do
         args: %{
           "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserCreated",
           "changes" => %{
+            "id" => user.id,
             "name" => "Jane",
             "email" => "jane@example.com"
           },
