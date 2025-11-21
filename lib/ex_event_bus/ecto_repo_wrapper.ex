@@ -3,83 +3,6 @@ defmodule ExEventBus.EctoRepoWrapper do
   Wraps the Ecto Repo functions to add event support with the same interface
   """
 
-  # Primary key helpers
-
-  def extract_primary_key_from_struct(struct) when is_struct(struct) do
-    schema = struct.__struct__
-
-    if function_exported?(schema, :__schema__, 1) do
-      do_extract_primary_key(schema, struct)
-    else
-      nil
-    end
-  end
-
-  defp do_extract_primary_key(schema, struct) do
-    case schema.__schema__(:primary_key) do
-      [pk_field] ->
-        # Single primary key (common case)
-        {pk_field, Map.get(struct, pk_field)}
-
-      [] ->
-        # No primary key
-        nil
-
-      pk_fields when is_list(pk_fields) ->
-        # Composite primary key - return as map
-        for pk_field <- pk_fields, into: %{} do
-          {pk_field, Map.get(struct, pk_field)}
-        end
-    end
-  end
-
-  defp get_primary_key_value(%Ecto.Changeset{} = changeset) do
-    extract_primary_key_from_struct(changeset.data)
-  end
-
-  defp add_primary_key(map, struct) when is_struct(struct) do
-    case extract_primary_key_from_struct(struct) do
-      nil ->
-        map
-
-      {pk_field, pk_value} ->
-        Map.put(map, pk_field, pk_value)
-
-      pk_map when is_map(pk_map) ->
-        Map.merge(map, pk_map)
-    end
-  end
-
-  defp index_by_primary_key(list) when is_list(list) do
-    Enum.reduce(list, %{}, fn struct, acc ->
-      case extract_primary_key_from_struct(struct) do
-        nil ->
-          acc
-
-        {_pk_field, pk_value} ->
-          Map.put(acc, pk_value, struct)
-
-        pk_map when is_map(pk_map) ->
-          # Composite keys - use tuple of values as key
-          pk_tuple = pk_map |> Map.values() |> List.to_tuple()
-          Map.put(acc, pk_tuple, struct)
-      end
-    end)
-  end
-
-  defp extract_changed_fields(initial_struct, %Ecto.Changeset{} = changeset) do
-    changed_fields = Map.keys(changeset.changes)
-
-    result =
-      for field <- changed_fields, into: %{} do
-        {field, Map.get(initial_struct, field)}
-      end
-
-    add_primary_key(result, initial_struct)
-  end
-
-  # Public API
-
   def add_changes_to_event_opts(opts, %{} = changes) do
     updated_event_opts =
       opts
@@ -99,8 +22,6 @@ defmodule ExEventBus.EctoRepoWrapper do
   end
 
   def get_changes(%Ecto.Changeset{} = changeset) do
-    # For root changeset: process nested associations but don't add own PK
-    # PK will be added later for inserts only (when ID actually changed from nil to value)
     Enum.reduce(changeset.changes, %{}, fn {key, value}, acc ->
       Map.put(acc, key, get_nested_changes(value))
     end)
@@ -109,23 +30,9 @@ defmodule ExEventBus.EctoRepoWrapper do
   def get_changes(value), do: value
 
   defp get_nested_changes(%Ecto.Changeset{} = changeset) do
-    # For nested associations: process changes AND add PK
-    base_changes =
-      Enum.reduce(changeset.changes, %{}, fn {key, value}, acc ->
-        Map.put(acc, key, get_nested_changes(value))
-      end)
-
-    # Add primary key to nested association changes
-    case get_primary_key_value(changeset) do
-      nil ->
-        base_changes
-
-      {pk_field, pk_value} ->
-        Map.put(base_changes, pk_field, pk_value)
-
-      pk_map when is_map(pk_map) ->
-        Map.merge(base_changes, pk_map)
-    end
+    Enum.reduce(changeset.changes, %{}, fn {key, value}, acc ->
+      Map.put(acc, key, get_nested_changes(value))
+    end)
   end
 
   defp get_nested_changes(list) when is_list(list) do
@@ -149,7 +56,7 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   defp get_initial_value(initial_struct, %Ecto.Changeset{} = new_changeset)
        when is_struct(initial_struct) do
-    # For has_one associations: extract only changed fields + PK
+    # For has_one associations: extract only changed fields
     # Only process if it's an Ecto schema (has __schema__/1 function)
     if function_exported?(initial_struct.__struct__, :__schema__, 1) do
       extract_changed_fields(initial_struct, new_changeset)
@@ -165,14 +72,10 @@ defmodule ExEventBus.EctoRepoWrapper do
     # Association items are Ecto schemas (have __schema__/1 function)
     # Primitive arrays contain strings, integers, UUIDs, etc.
     if has_schema_function?(new_list) do
-      # For has_many associations: match items by PK, extract only changed fields
-      initial_by_id = index_by_primary_key(initial_list)
-
-      new_list
-      |> Enum.reduce([], fn new_changeset, acc ->
-        add_initial_data_for_updated_item(new_changeset, initial_by_id, acc)
-      end)
-      |> Enum.reverse()
+      # For has_many associations: mirror the changes structure
+      # Extract only changed fields for each item, matching by position
+      Enum.with_index(new_list)
+      |> Enum.map(&extract_initial_for_item(&1, initial_list))
     else
       # Primitive array field - return initial value as-is
       initial_list
@@ -181,39 +84,32 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   defp get_initial_value(value, _new_value), do: value
 
+  defp extract_changed_fields(initial_struct, %Ecto.Changeset{} = changeset) do
+    changed_fields = Map.keys(changeset.changes)
+
+    for field <- changed_fields, into: %{} do
+      {field, Map.get(initial_struct, field)}
+    end
+  end
+
+  defp extract_initial_for_item({new_changeset, index}, initial_list) do
+    # Get corresponding initial struct by position, or use empty struct if new item
+    initial_struct = Enum.at(initial_list, index, %{})
+
+    if is_map(initial_struct) and map_size(initial_struct) > 0 do
+      extract_changed_fields(initial_struct, new_changeset)
+    else
+      # New item - no initial values
+      %{}
+    end
+  end
+
   defp has_schema_function?(list) when is_list(list) do
     case List.first(list) do
       nil -> false
       %Ecto.Changeset{data: data} -> function_exported?(data.__struct__, :__schema__, 1)
       item when is_struct(item) -> function_exported?(item.__struct__, :__schema__, 1)
       _ -> false
-    end
-  end
-
-  defp add_initial_data_for_updated_item(new_changeset, initial_by_id, acc) do
-    case get_primary_key_value(new_changeset) do
-      {_pk_field, nil} ->
-        # New item, skip (not in initial_data)
-        acc
-
-      {_pk_field, pk_value} ->
-        add_initial_data_if_found(initial_by_id, pk_value, new_changeset, acc)
-
-      pk_map when is_map(pk_map) ->
-        # Composite PK
-        pk_tuple = pk_map |> Map.values() |> List.to_tuple()
-        add_initial_data_if_found(initial_by_id, pk_tuple, new_changeset, acc)
-
-      nil ->
-        # No primary key
-        acc
-    end
-  end
-
-  defp add_initial_data_if_found(initial_by_id, pk_value, new_changeset, acc) do
-    case Map.get(initial_by_id, pk_value) do
-      nil -> acc
-      initial_struct -> [extract_changed_fields(initial_struct, new_changeset) | acc]
     end
   end
 
@@ -338,11 +234,7 @@ defmodule ExEventBus.EctoRepoWrapper do
 
         defp maybe_publish_events_in_multi(result, operation, event, opts) do
           if should_publish_event?(result, operation, opts) do
-            changes =
-              opts
-              |> Keyword.get(:changes)
-              |> maybe_add_primary_key_to_changes(result, operation)
-
+            changes = Keyword.get(opts, :changes)
             initial_data = Keyword.get(opts, :initial_data)
             metadata = Keyword.get(opts, :event_metadata)
             events = ExEventBus.Event.build_events(event, result, changes, initial_data, metadata)
@@ -352,74 +244,6 @@ defmodule ExEventBus.EctoRepoWrapper do
             Multi.new()
           end
         end
-
-        defp maybe_add_primary_key_to_changes(changes, result, operation)
-             when operation in [:insert, :insert!, :insert_or_update, :insert_or_update!] and
-                    is_struct(result) do
-          # For inserts, update changes map with actual PK value from result
-          changes =
-            case extract_primary_key_from_struct(result) do
-              nil ->
-                changes
-
-              {pk_field, pk_value} ->
-                Map.put(changes, pk_field, pk_value)
-
-              pk_map when is_map(pk_map) ->
-                Map.merge(changes, pk_map)
-            end
-
-          # Also update embedded schema IDs with actual generated values
-          update_embedded_ids(changes, result)
-        end
-
-        defp maybe_add_primary_key_to_changes(changes, _result, _operation), do: changes
-
-        defp update_embedded_ids(changes, result) when is_map(changes) and is_struct(result) do
-          Enum.reduce(changes, changes, fn {key, value}, acc ->
-            result_value = Map.get(result, key)
-            updated_value = sync_embedded_ids(value, result_value)
-            Map.put(acc, key, updated_value)
-          end)
-        end
-
-        defp sync_embedded_ids(change_value, result_value)
-             when is_map(change_value) and is_struct(result_value) do
-          # Check if result_value is an embedded schema (has __meta__ with state: :built)
-          if is_embedded_schema?(result_value) do
-            update_embedded_schema_id(change_value, result_value)
-          else
-            change_value
-          end
-        end
-
-        defp is_embedded_schema?(struct) when is_struct(struct) do
-          Map.has_key?(struct, :__meta__) and Map.get(struct.__meta__, :state) == :built
-        end
-
-        defp update_embedded_schema_id(change_value, result_value) do
-          case extract_primary_key_from_struct(result_value) do
-            nil ->
-              change_value
-
-            {pk_field, pk_value} ->
-              Map.put(change_value, pk_field, pk_value)
-
-            pk_map when is_map(pk_map) ->
-              Map.merge(change_value, pk_map)
-          end
-        end
-
-        defp sync_embedded_ids(change_list, result_list)
-             when is_list(change_list) and is_list(result_list) do
-          # Zip the lists and update each embedded schema
-          Enum.zip(change_list, result_list)
-          |> Enum.map(fn {change_item, result_item} ->
-            sync_embedded_ids(change_item, result_item)
-          end)
-        end
-
-        defp sync_embedded_ids(change_value, _result_value), do: change_value
       end
     end
   end
