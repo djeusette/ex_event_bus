@@ -358,7 +358,7 @@ defmodule ExEventBus.EctoRepoWrapper do
                     is_struct(result) do
           # For inserts, update changes map with actual PK value from result
           changes =
-            case ExEventBus.EctoRepoWrapper.extract_primary_key_from_struct(result) do
+            case extract_primary_key_from_struct(result) do
               nil ->
                 changes
 
@@ -398,7 +398,7 @@ defmodule ExEventBus.EctoRepoWrapper do
         end
 
         defp update_embedded_schema_id(change_value, result_value) do
-          case ExEventBus.EctoRepoWrapper.extract_primary_key_from_struct(result_value) do
+          case extract_primary_key_from_struct(result_value) do
             nil ->
               change_value
 
