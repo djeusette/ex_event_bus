@@ -141,22 +141,45 @@ defmodule ExEventBus.EctoRepoWrapper do
   defp get_initial_value(initial_struct, %Ecto.Changeset{} = new_changeset)
        when is_struct(initial_struct) do
     # For has_one associations: extract only changed fields + PK
-    extract_changed_fields(initial_struct, new_changeset)
+    # Only process if it's an Ecto schema (has __schema__/1 function)
+    if function_exported?(initial_struct.__struct__, :__schema__, 1) do
+      extract_changed_fields(initial_struct, new_changeset)
+    else
+      # Not an Ecto schema - return as-is
+      initial_struct
+    end
   end
 
   defp get_initial_value(initial_list, new_list)
        when is_list(initial_list) and is_list(new_list) do
-    # For has_many associations: match items by PK, extract only changed fields
-    initial_by_id = index_by_primary_key(initial_list)
+    # Check if this is a primitive array field or has_many association
+    # Association items are Ecto schemas (have __schema__/1 function)
+    # Primitive arrays contain strings, integers, UUIDs, etc.
+    if has_schema_function?(new_list) do
+      # For has_many associations: match items by PK, extract only changed fields
+      initial_by_id = index_by_primary_key(initial_list)
 
-    new_list
-    |> Enum.reduce([], fn new_changeset, acc ->
-      add_initial_data_for_updated_item(new_changeset, initial_by_id, acc)
-    end)
-    |> Enum.reverse()
+      new_list
+      |> Enum.reduce([], fn new_changeset, acc ->
+        add_initial_data_for_updated_item(new_changeset, initial_by_id, acc)
+      end)
+      |> Enum.reverse()
+    else
+      # Primitive array field - return initial value as-is
+      initial_list
+    end
   end
 
   defp get_initial_value(value, _new_value), do: value
+
+  defp has_schema_function?(list) when is_list(list) do
+    case List.first(list) do
+      nil -> false
+      %Ecto.Changeset{data: data} -> function_exported?(data.__struct__, :__schema__, 1)
+      item when is_struct(item) -> function_exported?(item.__struct__, :__schema__, 1)
+      _ -> false
+    end
+  end
 
   defp add_initial_data_for_updated_item(new_changeset, initial_by_id, acc) do
     case get_primary_key_value(new_changeset) do
