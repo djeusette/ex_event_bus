@@ -7,8 +7,8 @@ defmodule ExEventBus.InitialDataIntegrationTest do
   alias ExEventBus.IntegrationTestEvents.UserCreated
   alias ExEventBus.IntegrationTestEvents.UserDeleted
   alias ExEventBus.IntegrationTestEvents.UserUpdated
-  alias ExEventBus.IntegrationTestUser, as: TestUser
   alias ExEventBus.Repo
+  alias ExEventBus.Schemas.User, as: TestUser
   alias ExEventBus.TestEventBus
 
   setup _tags do
@@ -77,6 +77,55 @@ defmodule ExEventBus.InitialDataIntegrationTest do
           "initial_data" => %{
             "name" => nil,
             "email" => nil
+          }
+        }
+      )
+    end
+
+    test "insert with nested associations via cast_assoc includes association changes" do
+      changeset =
+        TestUser.changeset(%TestUser{}, %{
+          name: "Alice",
+          email: "alice@example.com",
+          age: 28,
+          profile: %{bio: "Software Engineer", avatar_url: "https://example.com/avatar.jpg"},
+          posts: [
+            %{title: "First Post", body: "Hello World"},
+            %{title: "Second Post", body: "Elixir is great"}
+          ]
+        })
+
+      {:ok, user} = Repo.insert(changeset, success_event: UserCreated)
+
+      assert user.name == "Alice"
+      user_with_assocs = Repo.preload(user, [:profile, :posts])
+      assert user_with_assocs.profile.bio == "Software Engineer"
+      assert length(user_with_assocs.posts) == 2
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserCreated",
+          "changes" => %{
+            "name" => "Alice",
+            "email" => "alice@example.com",
+            "age" => 28,
+            "profile" => %{
+              "id" => nil,
+              "bio" => "Software Engineer",
+              "avatar_url" => "https://example.com/avatar.jpg"
+            },
+            "posts" => [
+              %{"id" => nil, "title" => "First Post", "body" => "Hello World"},
+              %{"id" => nil, "title" => "Second Post", "body" => "Elixir is great"}
+            ]
+          },
+          "initial_data" => %{
+            "name" => nil,
+            "email" => nil,
+            "age" => nil,
+            "profile" => nil,
+            "posts" => []
           }
         }
       )
@@ -229,6 +278,67 @@ defmodule ExEventBus.InitialDataIntegrationTest do
         }
       )
     end
+
+    test "update with nested associations via cast_assoc includes association changes" do
+      # Insert user with profile and posts
+      {:ok, user} =
+        Repo.insert(
+          TestUser.changeset(%TestUser{}, %{
+            name: "Bob",
+            email: "bob@example.com",
+            age: 30,
+            profile: %{bio: "Developer", avatar_url: "https://example.com/bob.jpg"},
+            posts: [%{title: "Original Post", body: "Original content"}]
+          })
+        )
+
+      # Load associations for comparison
+      user_with_assocs = Repo.preload(user, [:profile, :posts])
+      original_profile = user_with_assocs.profile
+      original_post = List.first(user_with_assocs.posts)
+
+      # Update profile bio and add a new post
+      changeset =
+        TestUser.changeset(user_with_assocs, %{
+          profile: %{id: original_profile.id, bio: "Senior Developer"},
+          posts: [
+            %{id: original_post.id, title: "Updated Post"},
+            %{title: "New Post", body: "New content"}
+          ]
+        })
+
+      {:ok, updated} = Repo.update(changeset, success_event: UserUpdated)
+
+      updated_with_assocs = Repo.preload(updated, [:profile, :posts], force: true)
+      assert updated_with_assocs.profile.bio == "Senior Developer"
+      assert length(updated_with_assocs.posts) == 2
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserUpdated",
+          "changes" => %{
+            "profile" => %{"id" => original_profile.id, "bio" => "Senior Developer"},
+            "posts" => [
+              %{"id" => original_post.id, "title" => "Updated Post"},
+              %{"id" => nil, "title" => "New Post", "body" => "New content"}
+            ]
+          },
+          "initial_data" => %{
+            "profile" => %{
+              "id" => original_profile.id,
+              "bio" => original_profile.bio
+            },
+            "posts" => [
+              %{
+                "id" => original_post.id,
+                "title" => original_post.title
+              }
+            ]
+          }
+        }
+      )
+    end
   end
 
   describe "DELETE operation" do
@@ -275,6 +385,78 @@ defmodule ExEventBus.InitialDataIntegrationTest do
 
       assert deleted.name == "Jane"
 
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserDeleted",
+          "changes" => %{},
+          "initial_data" => %{}
+        }
+      )
+    end
+
+    test "delete user with associations publishes event with empty changes and initial_data" do
+      # Insert user with profile and posts
+      {:ok, user} =
+        Repo.insert(
+          TestUser.changeset(%TestUser{}, %{
+            name: "Charlie",
+            email: "charlie@example.com",
+            age: 35,
+            profile: %{bio: "Manager", avatar_url: "https://example.com/charlie.jpg"},
+            posts: [
+              %{title: "Post 1", body: "Content 1"},
+              %{title: "Post 2", body: "Content 2"}
+            ]
+          })
+        )
+
+      # Verify associations were created
+      user_with_assocs = Repo.preload(user, [:profile, :posts])
+      assert user_with_assocs.profile != nil
+      assert length(user_with_assocs.posts) == 2
+
+      # Delete user
+      {:ok, deleted} = Repo.delete(user, success_event: UserDeleted)
+
+      assert deleted.name == "Charlie"
+
+      # DELETE operations always have empty changes and initial_data
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserDeleted",
+          "changes" => %{},
+          "initial_data" => %{}
+        }
+      )
+    end
+
+    test "delete with changeset when user has associations publishes event with empty data" do
+      # Insert user with profile and posts
+      {:ok, user} =
+        Repo.insert(
+          TestUser.changeset(%TestUser{}, %{
+            name: "Diana",
+            email: "diana@example.com",
+            age: 28,
+            profile: %{bio: "Designer", avatar_url: "https://example.com/diana.jpg"},
+            posts: [%{title: "Design Post", body: "Design content"}]
+          })
+        )
+
+      # Verify associations were created
+      user_with_assocs = Repo.preload(user, [:profile, :posts])
+      assert user_with_assocs.profile != nil
+      assert length(user_with_assocs.posts) == 1
+
+      # Delete user with changeset
+      changeset = Ecto.Changeset.change(user)
+      {:ok, deleted} = Repo.delete(changeset, success_event: UserDeleted)
+
+      assert deleted.name == "Diana"
+
+      # DELETE operations with changeset also have empty changes and initial_data
       assert_enqueued(
         worker: ExEventBus.Worker,
         args: %{
