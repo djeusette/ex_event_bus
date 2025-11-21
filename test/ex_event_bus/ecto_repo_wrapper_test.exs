@@ -62,7 +62,11 @@ defmodule ExEventBus.EctoRepoWrapperTest do
         changes: %{name: "John", email: "john@example.com", age: 30}
       }
 
-      assert EctoRepoWrapper.get_initial_data(changeset) == %{name: nil, email: nil, age: nil}
+      assert EctoRepoWrapper.get_initial_data(changeset) == %{
+               name: nil,
+               email: nil,
+               age: nil
+             }
     end
   end
 

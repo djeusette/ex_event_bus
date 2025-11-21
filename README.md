@@ -189,10 +189,59 @@ ExEventBus provides detailed tracking of association changes when using `Ecto.Ch
 
 ### Primary Keys in Associations
 
-**All nested associations include their primary key** to distinguish between creates and updates:
+**All nested associations include their primary key** in both `changes` and `initial_data` to distinguish between creates, updates, and deletes:
 
-- **New items**: Primary key is `nil`
-- **Updated items**: Primary key has a value
+#### Create (New Item)
+```elixir
+changes: %{
+  "profile" => %{
+    "id" => nil,  # ← nil indicates CREATE
+    "bio" => "Engineer"
+  }
+}
+
+initial_data: %{
+  "profile" => nil  # ← nil because association didn't exist
+}
+```
+
+#### Update (Existing Item)
+```elixir
+changes: %{
+  "profile" => %{
+    "id" => 5,  # ← value indicates UPDATE
+    "bio" => "Senior Engineer"
+  }
+}
+
+initial_data: %{
+  "profile" => %{
+    "id" => 5,  # ← same ID
+    "bio" => "Engineer"  # ← old value
+  }
+}
+```
+
+#### Delete (Removed Item)
+```elixir
+# For has_many: item present in initial_data but absent from changes
+changes: %{
+  "posts" => [
+    %{"id" => 1, "title" => "Kept Post"}
+  ]
+}
+
+initial_data: %{
+  "posts" => [
+    %{"id" => 1, "title" => "Kept Post"},
+    %{"id" => 2, "title" => "Deleted Post"}  # ← Post 2 deleted
+  ]
+}
+```
+
+**Summary:**
+- **New items**: `"id" => nil` in `changes`, association is `nil` or `[]` in `initial_data`
+- **Updated items**: `"id" => <value>` in both `changes` and `initial_data`
 - **Deleted items**: Present in `initial_data` but absent from `changes`
 
 ### Has One Associations
@@ -382,27 +431,200 @@ def handle_event(%UserUpdated{changes: changes}) do
 end
 ```
 
-### Primary Key Variants
+### Primary Key Handling
 
-ExEventBus automatically detects and uses the correct primary key(s) for your schemas:
+**Root aggregates**: Primary keys are NOT included in `changes` or `initial_data` for the root entity. The primary key is used to identify the aggregate but is not tracked as a "change."
 
-- **Standard `id` field**: Most common case
-- **Custom primary key**: Uses `__schema__(:primary_key)` to determine the field name
-- **Composite primary keys**: Includes all primary key fields in the changes map
-- **No primary key**: Gracefully handles schemas without primary keys
+**Nested associations**: Primary keys ARE included to distinguish between creates, updates, and deletes within associations.
+
+#### Standard Primary Key (`id`)
+
+Most common case - integer `id` field:
 
 ```elixir
-# Custom primary key example
-schema "api_tokens" do
-  field(:token_id, :string, primary_key: true)
-  field(:expires_at, :naive_datetime)
+schema "users" do
+  field(:name, :string)
+  field(:email, :string)
+  timestamps()
 end
 
-# Event will include "token_id" instead of "id"
+# INSERT: PK not included in root changes
+%UserCreated{
+  changes: %{
+    "name" => "John",
+    "email" => "john@example.com"
+  },
+  initial_data: %{
+    "name" => nil,
+    "email" => nil
+  }
+}
+
+# UPDATE: PK not included in root changes
+%UserUpdated{
+  changes: %{
+    "email" => "new@example.com"
+  },
+  initial_data: %{
+    "email" => "old@example.com"
+  }
+}
+```
+
+#### Custom Primary Key
+
+Custom field name (e.g., UUID, external ID):
+
+```elixir
+schema "api_tokens" do
+  field(:token_id, :string, primary_key: true)
+  field(:secret, :string)
+  field(:expires_at, :naive_datetime)
+  timestamps()
+end
+
+# INSERT: Custom PK not included in root changes
 %TokenCreated{
   changes: %{
-    "token_id" => nil,
+    "secret" => "abc123...",
     "expires_at" => ~N[2025-12-31 23:59:59]
+  },
+  initial_data: %{
+    "secret" => nil,
+    "expires_at" => nil
+  }
+}
+
+# UPDATE: Custom PK not included in root changes
+%TokenUpdated{
+  changes: %{
+    "expires_at" => ~N[2026-01-31 23:59:59]
+  },
+  initial_data: %{
+    "expires_at" => ~N[2025-12-31 23:59:59]
+  }
+}
+```
+
+#### Composite Primary Keys
+
+Multiple fields form the primary key:
+
+```elixir
+schema "user_permissions" do
+  field(:user_id, :integer, primary_key: true)
+  field(:resource_id, :integer, primary_key: true)
+  field(:permission_level, :string)
+  timestamps()
+end
+
+# INSERT: Composite PK not included in root changes
+%PermissionCreated{
+  changes: %{
+    "permission_level" => "read"
+  },
+  initial_data: %{
+    "permission_level" => nil
+  }
+}
+
+# UPDATE: Composite PK not included in root changes
+%PermissionUpdated{
+  changes: %{
+    "permission_level" => "write"
+  },
+  initial_data: %{
+    "permission_level" => "read"
+  }
+}
+```
+
+#### Composite Keys in Associations
+
+When associations have composite keys, all PK fields are included:
+
+```elixir
+# Parent with standard PK
+schema "projects" do
+  field(:name, :string)
+  has_many(:tasks, Task)
+end
+
+# Child with composite PK
+schema "tasks" do
+  field(:project_id, :integer, primary_key: true)
+  field(:task_number, :integer, primary_key: true)
+  field(:title, :string)
+  field(:status, :string)
+end
+
+# Creating project with tasks
+%ProjectCreated{
+  changes: %{
+    "name" => "New Project",
+    "tasks" => [
+      %{
+        "project_id" => nil,  # ← Composite PK part 1
+        "task_number" => nil,  # ← Composite PK part 2
+        "title" => "Setup",
+        "status" => "pending"
+      }
+    ]
+  },
+  initial_data: %{
+    "name" => nil,
+    "tasks" => []
+  }
+}
+
+# Updating project with mixed task operations
+%ProjectUpdated{
+  changes: %{
+    "tasks" => [
+      %{
+        "project_id" => 5,  # ← Existing task (composite PK)
+        "task_number" => 1,
+        "status" => "completed"
+      },
+      %{
+        "project_id" => nil,  # ← New task (composite PK nil)
+        "task_number" => nil,
+        "title" => "Review",
+        "status" => "pending"
+      }
+    ]
+  },
+  initial_data: %{
+    "tasks" => [
+      %{
+        "project_id" => 5,
+        "task_number" => 1,
+        "status" => "pending"
+      }
+    ]
+  }
+}
+```
+
+#### No Primary Key
+
+Schemas without primary keys are handled gracefully:
+
+```elixir
+schema "audit_logs" do
+  field(:action, :string)
+  field(:timestamp, :naive_datetime)
+end
+
+# No PK fields in changes/initial_data
+%AuditLogCreated{
+  changes: %{
+    "action" => "login",
+    "timestamp" => ~N[2025-11-21 12:00:00]
+  },
+  initial_data: %{
+    "action" => nil,
+    "timestamp" => nil
   }
 }
 ```

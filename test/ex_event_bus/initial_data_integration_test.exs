@@ -467,4 +467,116 @@ defmodule ExEventBus.InitialDataIntegrationTest do
       )
     end
   end
+
+  describe "Composite Primary Keys - nested associations" do
+    test "insert with nested composite PK includes all PK fields" do
+      changeset =
+        TestUser.changeset(%TestUser{}, %{
+          name: "Alice",
+          email: "alice@example.com",
+          permissions: [
+            %{user_id: nil, resource_id: 10, permission_level: "read"},
+            %{user_id: nil, resource_id: 20, permission_level: "write"}
+          ]
+        })
+
+      {:ok, user} = Repo.insert(changeset, success_event: UserCreated)
+
+      user_with_perms = Repo.preload(user, :permissions)
+      assert length(user_with_perms.permissions) == 2
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserCreated",
+          "changes" => %{
+            "name" => "Alice",
+            "email" => "alice@example.com",
+            "permissions" => [
+              %{
+                "user_id" => nil,
+                "resource_id" => nil,
+                "permission_level" => "read"
+              },
+              %{
+                "user_id" => nil,
+                "resource_id" => nil,
+                "permission_level" => "write"
+              }
+            ]
+          },
+          "initial_data" => %{
+            "name" => nil,
+            "email" => nil,
+            "permissions" => []
+          }
+        }
+      )
+    end
+
+    test "update with nested composite PK includes all PK fields" do
+      # Insert user with permissions
+      {:ok, user} =
+        Repo.insert(
+          TestUser.changeset(%TestUser{}, %{
+            name: "Bob",
+            email: "bob@example.com",
+            permissions: [
+              %{user_id: nil, resource_id: 10, permission_level: "read"}
+            ]
+          })
+        )
+
+      user_with_perms = Repo.preload(user, :permissions)
+      existing_perm = List.first(user_with_perms.permissions)
+
+      # Update: modify existing permission and add new one
+      changeset =
+        TestUser.changeset(user_with_perms, %{
+          permissions: [
+            %{
+              user_id: existing_perm.user_id,
+              resource_id: existing_perm.resource_id,
+              permission_level: "write"
+            },
+            %{user_id: nil, resource_id: 20, permission_level: "admin"}
+          ]
+        })
+
+      {:ok, updated} = Repo.update(changeset, success_event: UserUpdated)
+
+      updated_with_perms = Repo.preload(updated, :permissions, force: true)
+      assert length(updated_with_perms.permissions) == 2
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserUpdated",
+          "changes" => %{
+            "permissions" => [
+              %{
+                "user_id" => existing_perm.user_id,
+                "resource_id" => existing_perm.resource_id,
+                "permission_level" => "write"
+              },
+              %{
+                "user_id" => nil,
+                "resource_id" => nil,
+                "permission_level" => "admin"
+              }
+            ]
+          },
+          "initial_data" => %{
+            "permissions" => [
+              %{
+                "user_id" => existing_perm.user_id,
+                "resource_id" => existing_perm.resource_id,
+                "permission_level" => "read"
+              }
+            ]
+          }
+        }
+      )
+    end
+  end
 end

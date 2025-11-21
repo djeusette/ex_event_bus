@@ -5,63 +5,56 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   # Primary key helpers
 
-  defp get_primary_key_value(%Ecto.Changeset{} = changeset) do
-    schema = changeset.data.__struct__
+  defp extract_primary_key_from_struct(struct) when is_struct(struct) do
+    schema = struct.__struct__
 
     case schema.__schema__(:primary_key) do
       [pk_field] ->
         # Single primary key (common case)
-        {pk_field, Map.get(changeset.data, pk_field)}
+        {pk_field, Map.get(struct, pk_field)}
 
       [] ->
         # No primary key
         nil
 
       pk_fields when is_list(pk_fields) ->
-        # Composite primary key
+        # Composite primary key - return as map
         for pk_field <- pk_fields, into: %{} do
-          {pk_field, Map.get(changeset.data, pk_field)}
+          {pk_field, Map.get(struct, pk_field)}
         end
     end
   end
 
+  defp get_primary_key_value(%Ecto.Changeset{} = changeset) do
+    extract_primary_key_from_struct(changeset.data)
+  end
+
   defp add_primary_key(map, struct) when is_struct(struct) do
-    schema = struct.__struct__
-
-    case schema.__schema__(:primary_key) do
-      [pk_field] ->
-        Map.put(map, pk_field, Map.get(struct, pk_field))
-
-      [] ->
+    case extract_primary_key_from_struct(struct) do
+      nil ->
         map
 
-      pk_fields when is_list(pk_fields) ->
-        Enum.reduce(pk_fields, map, fn pk_field, acc ->
-          Map.put(acc, pk_field, Map.get(struct, pk_field))
-        end)
+      {pk_field, pk_value} ->
+        Map.put(map, pk_field, pk_value)
+
+      pk_map when is_map(pk_map) ->
+        Map.merge(map, pk_map)
     end
   end
 
   defp index_by_primary_key(list) when is_list(list) do
     Enum.reduce(list, %{}, fn struct, acc ->
-      schema = struct.__struct__
-
-      case schema.__schema__(:primary_key) do
-        [pk_field] ->
-          pk_value = Map.get(struct, pk_field)
-          Map.put(acc, pk_value, struct)
-
-        [] ->
+      case extract_primary_key_from_struct(struct) do
+        nil ->
           acc
 
-        _pk_fields ->
-          # Composite keys - use tuple of values as key
-          pk_values =
-            for pk_field <- schema.__schema__(:primary_key) do
-              Map.get(struct, pk_field)
-            end
+        {_pk_field, pk_value} ->
+          Map.put(acc, pk_value, struct)
 
-          Map.put(acc, List.to_tuple(pk_values), struct)
+        pk_map when is_map(pk_map) ->
+          # Composite keys - use tuple of values as key
+          pk_tuple = pk_map |> Map.values() |> List.to_tuple()
+          Map.put(acc, pk_tuple, struct)
       end
     end)
   end

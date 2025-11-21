@@ -6,7 +6,7 @@ defmodule ExEventBus.Schemas.User do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ExEventBus.Schemas.{Post, Profile}
+  alias ExEventBus.Schemas.{Post, Profile, UserPermission}
 
   @derive {JSON.Encoder, only: [:id, :name, :email, :age, :inserted_at, :updated_at]}
   schema "test_users" do
@@ -16,6 +16,7 @@ defmodule ExEventBus.Schemas.User do
 
     has_one(:profile, Profile)
     has_many(:posts, Post)
+    has_many(:permissions, UserPermission)
 
     timestamps()
   end
@@ -26,5 +27,6 @@ defmodule ExEventBus.Schemas.User do
     |> validate_required([:name, :email])
     |> cast_assoc(:profile)
     |> cast_assoc(:posts)
+    |> cast_assoc(:permissions)
   end
 end
