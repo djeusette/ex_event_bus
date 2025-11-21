@@ -40,7 +40,6 @@ defmodule ExEventBus.InitialDataIntegrationTest do
         args: %{
           "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserCreated",
           "changes" => %{
-            "id" => user.id,
             "name" => "John",
             "email" => "john@example.com",
             "age" => 30
@@ -72,7 +71,6 @@ defmodule ExEventBus.InitialDataIntegrationTest do
         args: %{
           "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserCreated",
           "changes" => %{
-            "id" => user.id,
             "name" => "Jane",
             "email" => "jane@example.com"
           },
@@ -113,13 +111,12 @@ defmodule ExEventBus.InitialDataIntegrationTest do
             "email" => "alice@example.com",
             "age" => 28,
             "profile" => %{
-              "id" => nil,
               "bio" => "Software Engineer",
               "avatar_url" => "https://example.com/avatar.jpg"
             },
             "posts" => [
-              %{"id" => nil, "title" => "First Post", "body" => "Hello World"},
-              %{"id" => nil, "title" => "Second Post", "body" => "Elixir is great"}
+              %{"title" => "First Post", "body" => "Hello World"},
+              %{"title" => "Second Post", "body" => "Elixir is great"}
             ]
           },
           "initial_data" => %{
@@ -320,22 +317,19 @@ defmodule ExEventBus.InitialDataIntegrationTest do
         args: %{
           "event" => "Elixir.ExEventBus.IntegrationTestEvents.UserUpdated",
           "changes" => %{
-            "profile" => %{"id" => original_profile.id, "bio" => "Senior Developer"},
+            "profile" => %{"bio" => "Senior Developer"},
             "posts" => [
-              %{"id" => original_post.id, "title" => "Updated Post"},
-              %{"id" => nil, "title" => "New Post", "body" => "New content"}
+              %{"title" => "Updated Post"},
+              %{"title" => "New Post", "body" => "New content"}
             ]
           },
           "initial_data" => %{
             "profile" => %{
-              "id" => original_profile.id,
               "bio" => original_profile.bio
             },
             "posts" => [
-              %{
-                "id" => original_post.id,
-                "title" => original_post.title
-              }
+              %{"title" => original_post.title},
+              %{}
             ]
           }
         }
@@ -496,13 +490,11 @@ defmodule ExEventBus.InitialDataIntegrationTest do
             "email" => "alice@example.com",
             "permissions" => [
               %{
-                "user_id" => nil,
-                "resource_id" => nil,
+                "resource_id" => 10,
                 "permission_level" => "read"
               },
               %{
-                "user_id" => nil,
-                "resource_id" => nil,
+                "resource_id" => 20,
                 "permission_level" => "write"
               }
             ]
@@ -557,24 +549,18 @@ defmodule ExEventBus.InitialDataIntegrationTest do
           "changes" => %{
             "permissions" => [
               %{
-                "user_id" => existing_perm.user_id,
-                "resource_id" => existing_perm.resource_id,
                 "permission_level" => "write"
               },
               %{
-                "user_id" => nil,
-                "resource_id" => nil,
+                "resource_id" => 20,
                 "permission_level" => "admin"
               }
             ]
           },
           "initial_data" => %{
             "permissions" => [
-              %{
-                "user_id" => existing_perm.user_id,
-                "resource_id" => existing_perm.resource_id,
-                "permission_level" => "read"
-              }
+              %{"permission_level" => "read"},
+              %{}
             ]
           }
         }
