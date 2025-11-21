@@ -8,6 +8,7 @@ defmodule ExEventBus.Event do
           required(:__event_bus_event__) => true,
           required(:aggregate) => map | nil,
           required(:changes) => map | nil,
+          required(:initial_data) => map | nil,
           required(:metadata) => map | nil
         }
 
@@ -16,7 +17,7 @@ defmodule ExEventBus.Event do
       defmodule Module.concat(__MODULE__, name) do
         @moduledoc false
         @derive JSON.Encoder
-        defstruct [:aggregate, :changes, :metadata, __event_bus_event__: true]
+        defstruct [:aggregate, :changes, :initial_data, :metadata, __event_bus_event__: true]
       end
     end
   end
@@ -123,11 +124,17 @@ defmodule ExEventBus.Event do
             "such as function clauses, case clauses or on the left side of the = operator"
   end
 
-  def build_event(event, data, changes, metadata) when is_struct(data) and is_atom(event) do
+  def build_event(event, data, changes, initial_data, metadata)
+      when is_struct(data) and is_atom(event) do
     with true <- Code.ensure_loaded?(event),
          true <- function_exported?(event, :__struct__, 0),
          %_{} = event_struct <-
-           struct(event, %{aggregate: data, changes: changes, metadata: metadata}),
+           struct(event, %{
+             aggregate: data,
+             changes: changes,
+             initial_data: initial_data,
+             metadata: metadata
+           }),
          true <- is_event(event_struct) do
       event_struct
     else
@@ -136,20 +143,20 @@ defmodule ExEventBus.Event do
     end
   end
 
-  def build_events(event, record, changes, metadata, acc \\ [])
+  def build_events(event, record, changes, initial_data, metadata, acc \\ [])
 
-  def build_events(event, record, changes, metadata, acc) when is_atom(event) do
-    [build_event(event, record, changes, metadata) | acc]
+  def build_events(event, record, changes, initial_data, metadata, acc) when is_atom(event) do
+    [build_event(event, record, changes, initial_data, metadata) | acc]
   end
 
-  def build_events([first_event | other_events], record, changes, metadata, acc)
+  def build_events([first_event | other_events], record, changes, initial_data, metadata, acc)
       when is_atom(first_event),
       do:
-        build_events(other_events, record, changes, metadata, [
-          build_event(first_event, record, changes, metadata) | acc
+        build_events(other_events, record, changes, initial_data, metadata, [
+          build_event(first_event, record, changes, initial_data, metadata) | acc
         ])
 
-  def build_events([], _record, _changes, _metadata, acc), do: Enum.reverse(acc)
+  def build_events([], _record, _changes, _initial_data, _metadata, acc), do: Enum.reverse(acc)
 
   defmacro __using__(_) do
     quote location: :keep do
