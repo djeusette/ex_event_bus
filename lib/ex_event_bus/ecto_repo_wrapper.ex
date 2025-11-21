@@ -158,26 +158,26 @@ defmodule ExEventBus.EctoRepoWrapper do
 
     new_list
     |> Enum.reduce([], fn new_changeset, acc ->
-      match_and_extract_initial(new_changeset, initial_by_id, acc)
+      add_initial_data_for_updated_item(new_changeset, initial_by_id, acc)
     end)
     |> Enum.reverse()
   end
 
   defp get_initial_value(value, _new_value), do: value
 
-  defp match_and_extract_initial(new_changeset, initial_by_id, acc) do
+  defp add_initial_data_for_updated_item(new_changeset, initial_by_id, acc) do
     case get_primary_key_value(new_changeset) do
       {_pk_field, nil} ->
         # New item, skip (not in initial_data)
         acc
 
       {_pk_field, pk_value} ->
-        extract_if_found(initial_by_id, pk_value, new_changeset, acc)
+        add_initial_data_if_found(initial_by_id, pk_value, new_changeset, acc)
 
       pk_map when is_map(pk_map) ->
         # Composite PK
         pk_tuple = pk_map |> Map.values() |> List.to_tuple()
-        extract_if_found(initial_by_id, pk_tuple, new_changeset, acc)
+        add_initial_data_if_found(initial_by_id, pk_tuple, new_changeset, acc)
 
       nil ->
         # No primary key
@@ -185,7 +185,7 @@ defmodule ExEventBus.EctoRepoWrapper do
     end
   end
 
-  defp extract_if_found(initial_by_id, pk_value, new_changeset, acc) do
+  defp add_initial_data_if_found(initial_by_id, pk_value, new_changeset, acc) do
     case Map.get(initial_by_id, pk_value) do
       nil -> acc
       initial_struct -> [extract_changed_fields(initial_struct, new_changeset) | acc]
