@@ -4,7 +4,7 @@ defmodule ExEventBus.MixProject do
   def project do
     [
       app: :ex_event_bus,
-      version: "0.9.0",
+      version: "0.9.1",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

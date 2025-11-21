@@ -14,6 +14,20 @@ defmodule ExEventBus.EctoRepoWrapperTest do
     end
   end
 
+  describe "extract_primary_key_from_struct/1" do
+    test "returns nil for non-Ecto struct" do
+      non_ecto_struct = %{__struct__: DateTime}
+
+      assert EctoRepoWrapper.extract_primary_key_from_struct(non_ecto_struct) == nil
+    end
+
+    test "extracts single primary key from Ecto schema" do
+      schema = %TestSchema{id: 42, name: "John"}
+
+      assert EctoRepoWrapper.extract_primary_key_from_struct(schema) == {:id, 42}
+    end
+  end
+
   describe "get_initial_data/1 - simple fields" do
     test "extracts only changed fields from changeset data" do
       data = %TestSchema{name: "John", email: "old@example.com", age: 30}

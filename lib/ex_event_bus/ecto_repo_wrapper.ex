@@ -8,6 +8,14 @@ defmodule ExEventBus.EctoRepoWrapper do
   def extract_primary_key_from_struct(struct) when is_struct(struct) do
     schema = struct.__struct__
 
+    if function_exported?(schema, :__schema__, 1) do
+      do_extract_primary_key(schema, struct)
+    else
+      nil
+    end
+  end
+
+  defp do_extract_primary_key(schema, struct) do
     case schema.__schema__(:primary_key) do
       [pk_field] ->
         # Single primary key (common case)
@@ -349,19 +357,69 @@ defmodule ExEventBus.EctoRepoWrapper do
              when operation in [:insert, :insert!, :insert_or_update, :insert_or_update!] and
                     is_struct(result) do
           # For inserts, update changes map with actual PK value from result
-          case ExEventBus.EctoRepoWrapper.extract_primary_key_from_struct(result) do
-            nil ->
-              changes
+          changes =
+            case ExEventBus.EctoRepoWrapper.extract_primary_key_from_struct(result) do
+              nil ->
+                changes
 
-            {pk_field, pk_value} ->
-              Map.put(changes, pk_field, pk_value)
+              {pk_field, pk_value} ->
+                Map.put(changes, pk_field, pk_value)
 
-            pk_map when is_map(pk_map) ->
-              Map.merge(changes, pk_map)
-          end
+              pk_map when is_map(pk_map) ->
+                Map.merge(changes, pk_map)
+            end
+
+          # Also update embedded schema IDs with actual generated values
+          update_embedded_ids(changes, result)
         end
 
         defp maybe_add_primary_key_to_changes(changes, _result, _operation), do: changes
+
+        defp update_embedded_ids(changes, result) when is_map(changes) and is_struct(result) do
+          Enum.reduce(changes, changes, fn {key, value}, acc ->
+            result_value = Map.get(result, key)
+            updated_value = sync_embedded_ids(value, result_value)
+            Map.put(acc, key, updated_value)
+          end)
+        end
+
+        defp sync_embedded_ids(change_value, result_value)
+             when is_map(change_value) and is_struct(result_value) do
+          # Check if result_value is an embedded schema (has __meta__ with state: :built)
+          if is_embedded_schema?(result_value) do
+            update_embedded_schema_id(change_value, result_value)
+          else
+            change_value
+          end
+        end
+
+        defp is_embedded_schema?(struct) when is_struct(struct) do
+          Map.has_key?(struct, :__meta__) and Map.get(struct.__meta__, :state) == :built
+        end
+
+        defp update_embedded_schema_id(change_value, result_value) do
+          case ExEventBus.EctoRepoWrapper.extract_primary_key_from_struct(result_value) do
+            nil ->
+              change_value
+
+            {pk_field, pk_value} ->
+              Map.put(change_value, pk_field, pk_value)
+
+            pk_map when is_map(pk_map) ->
+              Map.merge(change_value, pk_map)
+          end
+        end
+
+        defp sync_embedded_ids(change_list, result_list)
+             when is_list(change_list) and is_list(result_list) do
+          # Zip the lists and update each embedded schema
+          Enum.zip(change_list, result_list)
+          |> Enum.map(fn {change_item, result_item} ->
+            sync_embedded_ids(change_item, result_item)
+          end)
+        end
+
+        defp sync_embedded_ids(change_value, _result_value), do: change_value
       end
     end
   end
