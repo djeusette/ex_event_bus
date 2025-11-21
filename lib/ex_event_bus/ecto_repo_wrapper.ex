@@ -3,16 +3,6 @@ defmodule ExEventBus.EctoRepoWrapper do
   Wraps the Ecto Repo functions to add event support with the same interface
   """
 
-  defp extract_changed_fields(initial_struct, %Ecto.Changeset{} = changeset) do
-    changed_fields = Map.keys(changeset.changes)
-
-    for field <- changed_fields, into: %{} do
-      {field, Map.get(initial_struct, field)}
-    end
-  end
-
-  # Public API
-
   def add_changes_to_event_opts(opts, %{} = changes) do
     updated_event_opts =
       opts
@@ -32,8 +22,6 @@ defmodule ExEventBus.EctoRepoWrapper do
   end
 
   def get_changes(%Ecto.Changeset{} = changeset) do
-    # For root changeset: process nested associations but don't add own PK
-    # PK will be added later for inserts only (when ID actually changed from nil to value)
     Enum.reduce(changeset.changes, %{}, fn {key, value}, acc ->
       Map.put(acc, key, get_nested_changes(value))
     end)
@@ -42,7 +30,6 @@ defmodule ExEventBus.EctoRepoWrapper do
   def get_changes(value), do: value
 
   defp get_nested_changes(%Ecto.Changeset{} = changeset) do
-    # For nested associations: just process changes, don't add PK
     Enum.reduce(changeset.changes, %{}, fn {key, value}, acc ->
       Map.put(acc, key, get_nested_changes(value))
     end)
@@ -69,7 +56,7 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   defp get_initial_value(initial_struct, %Ecto.Changeset{} = new_changeset)
        when is_struct(initial_struct) do
-    # For has_one associations: extract only changed fields + PK
+    # For has_one associations: extract only changed fields
     # Only process if it's an Ecto schema (has __schema__/1 function)
     if function_exported?(initial_struct.__struct__, :__schema__, 1) do
       extract_changed_fields(initial_struct, new_changeset)
@@ -96,6 +83,14 @@ defmodule ExEventBus.EctoRepoWrapper do
   end
 
   defp get_initial_value(value, _new_value), do: value
+
+  defp extract_changed_fields(initial_struct, %Ecto.Changeset{} = changeset) do
+    changed_fields = Map.keys(changeset.changes)
+
+    for field <- changed_fields, into: %{} do
+      {field, Map.get(initial_struct, field)}
+    end
+  end
 
   defp extract_initial_for_item({new_changeset, index}, initial_list) do
     # Get corresponding initial struct by position, or use empty struct if new item
