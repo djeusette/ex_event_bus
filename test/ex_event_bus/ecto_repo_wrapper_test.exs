@@ -282,4 +282,29 @@ defmodule ExEventBus.EctoRepoWrapperTest do
              }
     end
   end
+
+  describe "__using__/1" do
+    test "generated repo functions compile without warnings" do
+      source = """
+      defmodule ExEventBus.EctoRepoWrapperTest.WarningFreeRepo do
+        use Ecto.Repo, otp_app: :ex_event_bus, adapter: Ecto.Adapters.Postgres
+        use ExEventBus.EctoRepoWrapper, ex_event_bus: ExEventBus.TestEventBus
+      end
+      """
+
+      {modules, diagnostics} =
+        Code.with_diagnostics(fn -> Code.compile_string(source, "warning_free_repo.ex") end)
+
+      on_exit(fn ->
+        for {module, _binary} <- modules do
+          :code.purge(module)
+          :code.delete(module)
+        end
+      end)
+
+      assert diagnostics == [],
+             "expected no compiler diagnostics, got:\n" <>
+               Enum.map_join(diagnostics, "\n", & &1.message)
+    end
+  end
 end
