@@ -7,7 +7,7 @@ defmodule ExEventBus.ObanDrainer do
   import Ecto.Query, only: [where: 3]
 
   alias Oban.{Config, Job, Repo}
-  alias Oban.Queue.Executor
+  alias Oban.Queues.Executor
 
   @infinite 100_000_000
 
