@@ -86,7 +86,18 @@ defmodule ExEventBus.EctoRepoWrapperIntegrationTest do
     end
   end
 
+  describe "struct-or-changeset functions with a non-struct" do
+    for fun <- [:insert, :insert!, :delete, :delete!] do
+      test "#{fun}/2 raises FunctionClauseError from the repo's struct clause" do
+        assert %FunctionClauseError{module: Repo, function: unquote(fun), arity: 2} =
+                 assert_raise(FunctionClauseError, fn ->
+                   call_repo(unquote(fun), %{name: "John"})
+                 end)
+      end
+    end
+  end
+
   # Dispatches dynamically so the type checker does not flag the intentional
-  # misuse at compile time: it knows these functions only accept a changeset.
+  # misuse at compile time: it knows what these functions accept.
   defp call_repo(fun, arg), do: apply(Repo, fun, [arg])
 end

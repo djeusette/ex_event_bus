@@ -184,7 +184,7 @@ defmodule ExEventBus.EctoRepoWrapper do
 
   defp struct_clause(fun) do
     quote do
-      def unquote(fun)(struct, opts) do
+      def unquote(fun)(struct, opts) when is_struct(struct) do
         wrapped_fun = fn -> super(struct, opts) end
 
         wrap_repo_function(

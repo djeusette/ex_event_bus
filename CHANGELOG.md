@@ -13,7 +13,9 @@
   functions with a non-changeset now raises a `FunctionClauseError` from the
   repo's own clause instead of an `ArgumentError` from inside Ecto.
   `insert/2`, `insert!/2`, `delete/2` and `delete!/2` still accept plain
-  structs.
+  structs; their fallback clause is now guarded with `is_struct/1`, so a
+  non-struct raises a `FunctionClauseError` from the repo instead of from
+  `Ecto.Repo.Schema`.
 
 ### Changed
 
