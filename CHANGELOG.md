@@ -19,5 +19,13 @@
 
 ### Changed
 
+- Oban 2.24 or later is now required. Oban 2.24 renamed the internal
+  `Oban.Queue.Executor` module that `ExEventBus.ObanDrainer` relies on to
+  `Oban.Queues.Executor`. Oban 2.24 also requires its migrations to be at
+  version 14, so run `Oban.Migration.up(version: 14)` in your application if
+  you have not already.
+- All dependencies in `mix.lock` upgraded (ecto 3.14, ecto_sql 3.14,
+  postgrex 0.22, db_connection 2.10, decimal 3.1, telemetry 1.4), which clears
+  the `mix hex.audit` advisories for decimal and postgrex.
 - CI runs on Elixir 1.18.4 / OTP 27 and Elixir 1.20.4 / OTP 29.
 - Credo updated to 1.7.19 (dev and test only) for Elixir 1.20 compatibility.
