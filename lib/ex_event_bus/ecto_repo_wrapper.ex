@@ -149,7 +149,24 @@ defmodule ExEventBus.EctoRepoWrapper do
   def should_publish_event?(_record, _operation, _opts),
     do: true
 
+  # `Ecto.Repo` only accepts an `Ecto.Changeset` for these functions, so the
+  # wrapper defines a single changeset clause for them. A catch-all clause that
+  # calls `super/2` with anything else can never succeed, and Elixir 1.20's type
+  # checker reports it as "incompatible types given to super/2".
+  @changeset_only_functions [:update, :update!, :insert_or_update, :insert_or_update!]
+
+  defmacro redeffn(fun) when fun in @changeset_only_functions do
+    changeset_clause(fun)
+  end
+
   defmacro redeffn(fun) when is_atom(fun) do
+    quote do
+      unquote(changeset_clause(fun))
+      unquote(struct_clause(fun))
+    end
+  end
+
+  defp changeset_clause(fun) do
     quote do
       def unquote(fun)(%Ecto.Changeset{} = changeset, opts) do
         wrapped_fun = fn -> super(changeset, opts) end
@@ -162,9 +179,13 @@ defmodule ExEventBus.EctoRepoWrapper do
           unquote(fun)
         )
       end
+    end
+  end
 
-      def unquote(fun)(query, opts) do
-        wrapped_fun = fn -> super(query, opts) end
+  defp struct_clause(fun) do
+    quote do
+      def unquote(fun)(struct, opts) when is_struct(struct) do
+        wrapped_fun = fn -> super(struct, opts) end
 
         wrap_repo_function(
           wrapped_fun,
