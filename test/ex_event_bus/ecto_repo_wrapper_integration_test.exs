@@ -4,17 +4,21 @@ defmodule ExEventBus.EctoRepoWrapperIntegrationTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias ExEventBus.IntegrationTestEventHandler
-  alias ExEventBus.IntegrationTestEvents.{UserCreated, UserDeleted}
+  alias ExEventBus.IntegrationTestEvents.{UserCreated, UserDeleted, UserUpdated}
   alias ExEventBus.Repo
+  alias ExEventBus.Restart
   alias ExEventBus.Schemas.User
   alias ExEventBus.TestEventBus
 
   @user_created "Elixir.ExEventBus.IntegrationTestEvents.UserCreated"
   @user_deleted "Elixir.ExEventBus.IntegrationTestEvents.UserDeleted"
+  @user_updated "Elixir.ExEventBus.IntegrationTestEvents.UserUpdated"
+  @integration_handler "Elixir.ExEventBus.IntegrationTestEventHandler"
 
   setup do
     :ok = Sandbox.checkout(Repo)
 
+    TestEventBus.clear_subscribers()
     {:ok, _bus} = start_supervised({TestEventBus, []})
     {:ok, _handler} = start_supervised({IntegrationTestEventHandler, [event_bus: TestEventBus]})
 
@@ -72,6 +76,46 @@ defmodule ExEventBus.EctoRepoWrapperIntegrationTest do
 
       assert %User{name: "John"} = Repo.delete!(user)
       assert Repo.get(User, user.id) == nil
+    end
+  end
+
+  describe "update/2 with a changeset" do
+    test "publishes the success event with the changes" do
+      user = Repo.insert!(new_user())
+
+      assert {:ok, %User{name: "Jane"}} =
+               user
+               |> User.changeset(%{name: "Jane"})
+               |> Repo.update(success_event: UserUpdated)
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => @user_updated,
+          "event_handler" => @integration_handler,
+          "changes" => %{"name" => "Jane"}
+        }
+      )
+    end
+
+    test "when the bus crashed and restarted, still publishes the success event" do
+      user = Repo.insert!(new_user())
+
+      Restart.crash_and_await(TestEventBus)
+
+      assert {:ok, %User{name: "Jane"}} =
+               user
+               |> User.changeset(%{name: "Jane"})
+               |> Repo.update(success_event: UserUpdated)
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => @user_updated,
+          "event_handler" => @integration_handler,
+          "changes" => %{"name" => "Jane"}
+        }
+      )
     end
   end
 

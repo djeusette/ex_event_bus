@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.0.0 - 2026-09-17
+
+### Fixed
+
+- Subscriptions no longer vanish when the bus restarts. They used to live in
+  an ETS table owned by a `ConCache` process supervised by the bus, while the
+  handlers that register them live wherever the application starts them: a
+  restart of the bus, of its `State` child or of its Oban instance brought the
+  table back empty, no handler re-subscribed, and from then on every
+  `Repo.insert/update/delete(..., success_event: ...)` found no subscriber and
+  enqueued nothing — silently, since publishing to zero subscribers is a valid
+  no-op. Subscriptions are now kept in `:persistent_term`, which no process
+  owns, so no restart can drop them and a handler may start before or after
+  its bus.
+
+### Changed
+
+- **Breaking:** `ExEventBus.State` is no longer a process. Its `child_spec/1`
+  is gone and the bus supervisor now starts only its Oban instance; code that
+  started or looked up `MyApp.EventBus.State` must be removed. `add_subscriber/3`
+  and `get_subscribers/2` take the bus module (`MyApp.EventBus`) as their first
+  argument, and `State.clear/1` erases a bus's subscriptions.
+- **Breaking:** subscriptions are global to the node and outlive the bus
+  process. A test suite that starts a bus per test must call the new
+  `MyApp.EventBus.clear_subscribers/0` before starting it, or subscriptions
+  from one test leak into the next. Applications that start the bus once, from
+  their supervision tree, are unaffected.
+- `con_cache` is no longer a dependency.
+
 ## 0.11.0 - 2026-09-09
 
 ### Fixed

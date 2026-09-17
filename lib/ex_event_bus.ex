@@ -25,8 +25,7 @@ defmodule ExEventBus do
 
       def children(opts) do
         [
-          {Oban, oban_config(opts)},
-          {State, [name: __MODULE__.State]}
+          {Oban, oban_config(opts)}
         ]
       end
 
@@ -35,22 +34,31 @@ defmodule ExEventBus do
         do: Supervisor.init(children(opts), strategy: :one_for_one)
 
       def subscribe(event_mod, subscriber) when is_atom(event_mod) do
-        State.add_subscriber(__MODULE__.State, event_mod, subscriber)
+        State.add_subscriber(__MODULE__, event_mod, subscriber)
       end
 
       def subscribe(event_mod, subscriber) when is_binary(event_mod) do
         State.add_subscriber(
-          __MODULE__.State,
+          __MODULE__,
           String.to_existing_atom(event_mod),
           subscriber
         )
       end
 
       def subscribers(event) when is_event(event),
-        do: State.get_subscribers(__MODULE__.State, event.__struct__)
+        do: State.get_subscribers(__MODULE__, event.__struct__)
 
       def subscribers(event_mod) when is_atom(event_mod),
-        do: State.get_subscribers(__MODULE__.State, event_mod)
+        do: State.get_subscribers(__MODULE__, event_mod)
+
+      @doc """
+      Removes every subscription registered on this bus.
+
+      Subscriptions outlive the bus process, so a test suite that starts a
+      bus per test calls this to start each test from an empty registry.
+      """
+      @spec clear_subscribers() :: :ok
+      def clear_subscribers, do: State.clear(__MODULE__)
 
       @spec publish(event :: ExEventBus.Event.t() | list(ExEventBus.Event.t())) ::
               list(Oban.Job.t())

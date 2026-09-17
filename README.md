@@ -1,7 +1,7 @@
 # ExEventBus
 
-ExEventBus provides an event bus that uses the outbox pattern.  Behind the scenes, 
-it relies on Oban and ConCache.
+ExEventBus provides an event bus that uses the outbox pattern. Behind the scenes,
+it relies on Oban.
 
 ## Installation
 
@@ -11,7 +11,7 @@ by adding `ex_event_bus` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_event_bus, "~> 0.11.0"}
+    {:ex_event_bus, "~> 1.0"}
   ]
 end
 ```
@@ -111,6 +111,29 @@ mix test
     # ...
   end
   ```
+
+  Handlers and the bus are independent: a handler registers its subscriptions
+  when it starts, and they are kept in `:persistent_term`, outside any process.
+  Neither a restart of the bus (or of its Oban instance) nor a restart of the
+  handler can drop a subscription, and the two can be started in any order.
+
+## Testing
+
+Subscriptions outlive the bus process and are global to the node. A test suite
+that starts a bus per test resets the registry first, so subscriptions from a
+previous test never leak into the next one:
+
+```elixir
+setup do
+  MyApp.EventBus.clear_subscribers()
+  start_supervised!(MyApp.EventBus)
+  start_supervised!({MyApp.EventHandler, [event_bus: MyApp.EventBus]})
+  :ok
+end
+```
+
+An application that starts its bus once, from its supervision tree, needs no
+such reset.
 
 ## Event Structure
 
