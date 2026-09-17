@@ -22,8 +22,8 @@ defmodule ExEventBus.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp description,
-    do: "ExEventBus provides an event bus that uses the outbox pattern.  Behind the scenes, 
-it relies on Oban and ConCache."
+    do: "ExEventBus provides an event bus that uses the outbox pattern. Behind the scenes,
+it relies on Oban."
 
   defp package,
     do: [
@@ -42,7 +42,6 @@ it relies on Oban and ConCache."
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:con_cache, "~> 1.1"},
       {:oban, "~> 2.24"},
       {:postgrex, ">= 0.0.0"},
       {:ex_doc, "~> 0.38", only: :dev, runtime: false},

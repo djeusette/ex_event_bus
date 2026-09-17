@@ -13,6 +13,7 @@ defmodule ExEventBus.TestingTest do
   end
 
   setup do
+    TestEventBus.clear_subscribers()
     assert {:ok, _handler} = start_supervised(TestEventBus, [])
 
     :ok

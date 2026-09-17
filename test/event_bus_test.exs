@@ -4,6 +4,7 @@ defmodule ExEventBusTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias ExEventBus.OtherTestEventHandler
+  alias ExEventBus.Restart
   alias ExEventBus.TestEventBus
   alias ExEventBus.TestEventHandler
   alias ExEventBus.TestEvents
@@ -14,11 +15,40 @@ defmodule ExEventBusTest do
   end
 
   def start_event_bus do
+    TestEventBus.clear_subscribers()
     start_supervised(TestEventBus, [])
   end
 
-  test "starts" do
-    assert {:ok, _handler} = start_event_bus()
+  describe "start_link/1" do
+    test "starts the bus" do
+      assert {:ok, _pid} = start_event_bus()
+    end
+
+    test "supervises only the Oban instance" do
+      assert {:ok, pid} = start_event_bus()
+
+      assert [{TestEventBus.Oban, _oban_pid, :supervisor, [Oban]}] =
+               Supervisor.which_children(pid)
+    end
+  end
+
+  describe "clear_subscribers/0" do
+    setup do
+      assert {:ok, _pid} = start_event_bus()
+      assert {:ok, _pid} = start_supervised({TestEventHandler, [event_bus: TestEventBus]})
+
+      :ok
+    end
+
+    test "removes every subscription registered on the bus" do
+      assert TestEventBus.subscribers(TestEvents.TestEvent) == [TestEventHandler]
+      assert TestEventBus.subscribers(TestEvents.RaiseEvent) == [TestEventHandler]
+
+      assert :ok = TestEventBus.clear_subscribers()
+
+      assert TestEventBus.subscribers(TestEvents.TestEvent) == []
+      assert TestEventBus.subscribers(TestEvents.RaiseEvent) == []
+    end
   end
 
   describe "subscribe/2" do
@@ -63,6 +93,32 @@ defmodule ExEventBusTest do
 
     test "returns the subscribers to the given event module" do
       assert TestEventBus.subscribers(TestEvents.TestEvent2) == []
+
+      assert TestEventBus.subscribers(TestEvents.TestEvent) == [
+               OtherTestEventHandler,
+               TestEventHandler
+             ]
+    end
+
+    test "when the bus crashed and restarted, still returns the subscribers registered before" do
+      Restart.crash_and_await(TestEventBus)
+
+      assert TestEventBus.subscribers(TestEvents.TestEvent) == [
+               OtherTestEventHandler,
+               TestEventHandler
+             ]
+
+      assert TestEventBus.subscribers(TestEvents.TestEvent1) == [
+               OtherTestEventHandler,
+               TestEventHandler
+             ]
+
+      assert TestEventBus.subscribers(TestEvents.RaiseEvent) == [TestEventHandler]
+    end
+
+    test "when the bus was stopped and started again, still returns the subscribers registered before" do
+      stop_supervised!(TestEventBus)
+      start_supervised!(TestEventBus)
 
       assert TestEventBus.subscribers(TestEvents.TestEvent) == [
                OtherTestEventHandler,
@@ -246,6 +302,34 @@ defmodule ExEventBusTest do
       assert [] = TestEventBus.publish(event)
 
       refute_enqueued(worker: ExEventBus.Worker)
+    end
+
+    test "when the bus crashed and restarted, still publishes to the subscribers registered before" do
+      Restart.crash_and_await(TestEventBus)
+
+      event =
+        struct(TestEvents.TestEvent, %{
+          aggregate: %{name: "John"},
+          changes: %{name: "John"}
+        })
+
+      assert [%Oban.Job{}, %Oban.Job{}] = TestEventBus.publish(event)
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.TestEventHandler"
+        }
+      )
+
+      assert_enqueued(
+        worker: ExEventBus.Worker,
+        args: %{
+          "event" => "Elixir.ExEventBus.TestEvents.TestEvent",
+          "event_handler" => "Elixir.ExEventBus.OtherTestEventHandler"
+        }
+      )
     end
 
     test "publishes an actual struct in the event" do

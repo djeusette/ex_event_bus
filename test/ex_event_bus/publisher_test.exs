@@ -11,6 +11,7 @@ defmodule ExEventBus.PublisherTest do
   setup tags do
     pid = Sandbox.start_owner!(ExEventBus.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
+    TestEventBus.clear_subscribers()
     {:ok, _handler} = start_supervised({TestEventBus, []})
     :ok
   end
