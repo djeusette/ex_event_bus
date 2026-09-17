@@ -11,7 +11,7 @@ by adding `ex_event_bus` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_event_bus, "~> 0.11.0"}
+    {:ex_event_bus, "~> 1.0"}
   ]
 end
 ```
